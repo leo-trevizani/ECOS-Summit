@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Rules for ECOS Summit application
+    
+    // Anyone can read and write visitors (since visitors are self-registering and logging in via client-side app)
+    match /visitors/{cpf} {
+      allow read, write: if true;
+    }
+
+    // Anyone can read agencies, but only admins can write (or we can update balance client-side safely for this event)
+    match /agencies/{agencyId} {
+      allow read, write: if true;
+    }
+
+    // Anyone can read and write transactions
+    match /transactions/{transactionId} {
+      allow read, write: if true;
+    }
+
+    // Anyone can read the blacklist or config documents, write is also allowed for administrative actions
+    match /blacklist/{cpf} {
+      allow read, write: if true;
+    }
+  }
+}

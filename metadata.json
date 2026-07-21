@@ -1,0 +1,6 @@
+{
+  "name": "ECOS Summit",
+  "description": "Plataforma de economia de Créditos ECOS para feira de negócios acadêmica e gestão de investimentos em agências estudantis.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
