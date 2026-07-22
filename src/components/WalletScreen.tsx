@@ -222,23 +222,6 @@ export const WalletScreen: React.FC = () => {
     }
   };
 
-  const handleScanSimulation = (agencyId: string) => {
-    handleScanSuccess(agencyId);
-  };
-
-  const handleManualCodeSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const code = (data.get('agencyCode') as string || '').toLowerCase().trim();
-    
-    const agency = state.agencies.find(a => a.id === code);
-    if (agency) {
-      handleScanSuccess(agency.id);
-    } else {
-      setErrorMsg('Código de agência inválido. Tente "vortex", "lumina", "apex" ou "spark".');
-    }
-  };
-
   const [isInvesting, setIsInvesting] = useState(false);
 
   const handleInvestSubmit = async (e: React.FormEvent) => {
@@ -285,23 +268,23 @@ export const WalletScreen: React.FC = () => {
   const myTransactions = state.transactions.filter(tx => tx.visitorCpf === visitor.cpf);
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-dark text-white relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8">
       {/* Glow Rings */}
-      <div className="absolute top-[-25%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-20 blur-[100px]" />
-      <div className="absolute bottom-[-15%] right-[-10%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-10 blur-[80px]" />
+      <div className="absolute top-[-25%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-20 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-10 blur-[80px] pointer-events-none" />
 
       {/* Main Container / Scrollable */}
       <div className="flex flex-col w-full pb-6">
         
         {/* Header App Bar */}
         <div className="flex items-center justify-between p-6 pb-2 z-10 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#F27D26] to-[#7C3AED] flex items-center justify-center">
-              <span className="font-display font-bold text-sm text-white">E</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#F27D26] to-[#7C3AED] flex items-center justify-center shadow-md">
+              <span className="font-display font-bold text-base text-white">E</span>
             </div>
             <div>
-              <h2 className="text-[10px] font-mono text-white/40 leading-none">ECOS WALLET</h2>
-              <h1 className="text-sm font-sans font-bold text-slate-200">Olá, {visitor.name.split(' ')[0]}</h1>
+              <h2 className="text-xs font-mono text-white/50 uppercase tracking-wider">CARTEIRA DIGITAL</h2>
+              <h1 className="text-base font-sans font-bold text-slate-100">Olá, {visitor.name.split(' ')[0]}</h1>
             </div>
           </div>
           
@@ -313,7 +296,7 @@ export const WalletScreen: React.FC = () => {
                 setSoundEnabled(newVal);
                 playSound('click', newVal);
               }}
-              className="p-2 bg-brand-surface border border-brand-border rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-2.5 bg-brand-surface border border-brand-border rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
               title={soundEnabled ? 'Silenciar Sons' : 'Ativar Sons'}
             >
               {soundEnabled ? (
@@ -325,7 +308,7 @@ export const WalletScreen: React.FC = () => {
             <button 
               id="btn-logout"
               onClick={logout} 
-              className="p-2 bg-brand-surface border border-brand-border rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-2.5 bg-brand-surface border border-brand-border rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
               title="Sair da Conta"
             >
               <LogOut className="w-4 h-4" />
@@ -334,31 +317,31 @@ export const WalletScreen: React.FC = () => {
         </div>
 
         {/* Dynamic Balance Wallet Card */}
-        <div className="px-6 py-2 shrink-0 z-10">
+        <div className="px-6 py-3 shrink-0 z-10">
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="relative overflow-hidden bg-brand-surface border border-brand-border rounded-3xl p-6 shadow-xl"
           >
-            <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-[#7C3AED]/10 rounded-full blur-2xl" />
+            <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-[#7C3AED]/10 rounded-full blur-2xl pointer-events-none" />
             
             <div className="flex justify-between items-start mb-6">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold tracking-wider text-white/50 flex items-center gap-1.5 font-mono">
-                  <Wallet className="w-3.5 h-3.5 text-brand-orange" />
+                <span className="text-xs font-bold tracking-wider text-white/60 flex items-center gap-1.5 font-mono">
+                  <Wallet className="w-4 h-4 text-brand-orange" />
                   SALDO DISPONÍVEL
                 </span>
-                <div className="flex items-baseline gap-1.5">
-                  <span id="label-balance-ecos" className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200">
+                <div className="flex items-baseline gap-2">
+                  <span id="label-balance-ecos" className="text-4xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200">
                     {visitor.balance.toLocaleString('pt-BR')}
                   </span>
-                  <span className="text-xs font-mono font-bold text-brand-orange">ECOS</span>
+                  <span className="text-sm font-mono font-bold text-brand-orange">créditos</span>
                 </div>
               </div>
               
               <div className="text-right">
-                <span className="text-[9px] font-bold text-white/40 block font-mono uppercase tracking-wider">CPF CADASTRADO</span>
-                <span className="text-xs font-mono text-slate-300">{formatCPF(visitor.cpf)}</span>
+                <span className="text-xs font-bold text-white/50 block font-mono uppercase tracking-wider">CPF CADASTRADO</span>
+                <span className="text-sm font-mono text-slate-200">{formatCPF(visitor.cpf)}</span>
               </div>
             </div>
 
@@ -366,58 +349,56 @@ export const WalletScreen: React.FC = () => {
               <button
                 id="btn-scan-qr"
                 onClick={() => { setShowScanner(true); setErrorMsg(null); }}
-                className="flex-1 py-3.5 bg-brand-orange hover:bg-brand-orange-hover font-display font-bold text-xs uppercase tracking-widest text-white rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-orange/20 cursor-pointer active:scale-98 transition-all"
+                className="flex-1 py-4 bg-brand-orange hover:bg-brand-orange-hover font-display font-bold text-sm uppercase tracking-widest text-white rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-orange/20 cursor-pointer active:scale-98 transition-all"
               >
-                <QrCode className="w-4 h-4" />
+                <QrCode className="w-5 h-5" />
                 <span>Escanear QR Code</span>
               </button>
             </div>
           </motion.div>
         </div>
 
-
-
         {/* Transactions / History Feed */}
         <div className="flex-1 px-6 pt-4 flex flex-col z-10">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-[10px] font-bold tracking-widest text-white/50 font-mono uppercase">HISTÓRICO DE INVESTIMENTOS</h3>
-            <span className="text-[10px] font-mono text-slate-500">
+            <h3 className="text-xs font-bold tracking-widest text-white/60 font-mono uppercase">HISTÓRICO DE INVESTIMENTOS</h3>
+            <span className="text-xs font-mono text-slate-400">
               {myTransactions.length} {myTransactions.length === 1 ? 'transação' : 'transações'}
             </span>
           </div>
 
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 min-h-[180px]">
             {myTransactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full py-8 text-center text-slate-600 border border-dashed border-brand-border rounded-2xl p-4">
-                <Clock className="w-8 h-8 stroke-[1.2] text-slate-700 mb-2" />
-                <p className="text-xs">Nenhum investimento realizado ainda.</p>
-                <p className="text-[10px] text-slate-700 mt-1 max-w-[180px]">
-                  Clique no botão acima para transferir seus ECOS para as agências expositoras.
+              <div className="flex flex-col items-center justify-center h-full py-8 text-center text-slate-500 border border-dashed border-brand-border rounded-2xl p-5">
+                <Clock className="w-8 h-8 stroke-[1.2] text-slate-600 mb-2" />
+                <p className="text-sm">Nenhum investimento realizado ainda.</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-[200px]">
+                  Clique no botão acima para transferir seus créditos para as agências expositoras.
                 </p>
               </div>
             ) : (
               myTransactions.map(tx => (
                 <div 
                   key={tx.id}
-                  className="flex justify-between items-center p-3.5 bg-brand-surface border border-brand-border hover:border-[#7C3AED]/30 rounded-xl transition"
+                  className="flex justify-between items-center p-4 bg-brand-surface border border-brand-border hover:border-[#7C3AED]/30 rounded-xl transition"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-[#7C3AED]/10 flex items-center justify-center">
-                      <Building2 className="w-4 h-4 text-[#7C3AED]" />
+                    <div className="w-10 h-10 rounded-xl bg-[#7C3AED]/10 flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-[#7C3AED]" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-200">{tx.agencyName}</h4>
-                      <p className="text-[10px] text-slate-500 font-mono">
+                      <h4 className="text-sm font-bold text-slate-100">{tx.agencyName}</h4>
+                      <p className="text-xs text-slate-400 font-mono">
                         {new Date(tx.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-mono font-bold text-brand-orange flex items-center gap-0.5 justify-end">
-                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    <span className="text-base font-mono font-bold text-brand-orange flex items-center gap-0.5 justify-end">
+                      <ArrowUpRight className="w-4 h-4" />
                       -{tx.amount}
                     </span>
-                    <span className="text-[9px] font-mono text-slate-500 block">ECOS</span>
+                    <span className="text-xs font-mono text-slate-400 block">créditos</span>
                   </div>
                 </div>
               ))
@@ -450,7 +431,7 @@ export const WalletScreen: React.FC = () => {
               </button>
             </div>
 
-            {/* Viewfinder & Interactive Simulation Panel */}
+            {/* Viewfinder & Scanner Panel */}
             <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col items-center justify-start gap-5 pb-4">
               
               {/* Real camera HTML5-QRCODE scanner */}
@@ -458,51 +439,14 @@ export const WalletScreen: React.FC = () => {
                 onScanSuccess={handleScanSuccess} 
               />
               
-              <div className="w-full max-w-xs text-center space-y-4 pt-1">
-                <p className="text-[11px] text-white/50 font-sans max-w-xs leading-relaxed mx-auto">
-                  Aponte a câmera para o QR Code da agência. Se a câmera estiver indisponível, use o simulador ou o código abaixo:
-                </p>
-
-                {/* Simulator Grid */}
-                <div className="space-y-2">
-                  <span className="block text-[9px] font-bold text-white/40 font-mono uppercase tracking-widest text-center">
-                    Simular Leitura de Estande
+              <div className="w-full max-w-xs text-center space-y-3 pt-2">
+                <div className="p-3.5 bg-brand-surface/60 border border-brand-border rounded-2xl space-y-1.5 shadow-sm">
+                  <span className="text-[10px] font-bold font-mono text-brand-orange uppercase tracking-wider block">
+                    SISTEMA DE SEGURANÇA ANTIFRAUDE
                   </span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {state.agencies.map(a => (
-                      <button
-                        key={a.id}
-                        onClick={() => handleScanSuccess(`https://ecos-credits.com/investir/${a.id}`)}
-                        className="p-3.5 text-left bg-brand-surface hover:bg-brand-surface/80 border border-brand-border hover:border-brand-orange rounded-xl text-xs flex flex-col justify-between transition cursor-pointer active:scale-95 shadow-sm"
-                      >
-                        <span className="font-bold text-slate-200 line-clamp-1">{a.name}</span>
-                        <span className="text-[9px] text-slate-500 font-mono mt-0.5">ID: {a.id}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Manual code input */}
-                <div className="pt-4 border-t border-brand-border/60">
-                  <form onSubmit={handleManualCodeSubmit} className="space-y-2">
-                    <label className="block text-[9px] font-mono text-slate-500 uppercase tracking-widest">
-                      Ou digite o ID da Agência
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        name="agencyCode"
-                        type="text"
-                        placeholder="Ex: vortex"
-                        className="flex-1 px-3 py-2 bg-brand-surface border border-brand-border rounded-xl text-xs font-mono text-center text-white focus:outline-none focus:border-brand-orange uppercase"
-                      />
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-brand-orange hover:bg-brand-orange-hover text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-95 transition"
-                      >
-                        Ir
-                      </button>
-                    </div>
-                  </form>
+                  <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+                    A leitura do QR Code oficial da agência via câmera é a <strong className="text-white font-bold">única forma válida</strong> para autenticar e realizar o investimento.
+                  </p>
                 </div>
               </div>
 
@@ -552,14 +496,14 @@ export const WalletScreen: React.FC = () => {
               
               <div className="space-y-4">
                 {/* Balance Helper */}
-                <div className="p-3 bg-brand-dark border border-brand-border rounded-xl flex justify-between items-center text-xs">
+                <div className="p-3 bg-brand-dark border border-brand-border rounded-xl flex justify-between items-center text-sm">
                   <span className="text-slate-400 font-mono">Seu saldo:</span>
-                  <span className="font-mono font-bold text-brand-orange">{visitor.balance} ECOS</span>
+                  <span className="font-mono font-bold text-brand-orange">{visitor.balance} créditos</span>
                 </div>
 
                 {/* Amount Field */}
                 <div className="space-y-2 text-center py-4 bg-brand-dark/50 border border-brand-border rounded-2xl">
-                  <label className="block text-[10px] font-bold text-white/50 font-mono tracking-wider uppercase">
+                  <label className="block text-xs font-bold text-white/60 font-mono tracking-wider uppercase">
                     QUANTIDADE DE CRÉDITOS
                   </label>
                   
@@ -579,7 +523,7 @@ export const WalletScreen: React.FC = () => {
                       className="w-36 text-center text-3xl font-mono font-bold bg-transparent border-b-2 border-[#251F35] focus:border-brand-orange text-white focus:outline-none placeholder-white/10"
                       required
                     />
-                    <span className="text-lg font-mono font-bold text-brand-orange">ECOS</span>
+                    <span className="text-xl font-mono font-bold text-brand-orange">créditos</span>
                   </div>
 
                   {/* Quick value presets */}
@@ -593,7 +537,7 @@ export const WalletScreen: React.FC = () => {
                           setErrorMsg(null);
                           setInvestAmount(val.toString());
                         }}
-                        className="px-3 py-1 bg-brand-dark hover:bg-white/5 disabled:opacity-30 border border-brand-border rounded-lg text-[11px] font-mono transition cursor-pointer"
+                        className="px-3 py-1.5 bg-brand-dark hover:bg-white/5 disabled:opacity-30 border border-brand-border rounded-lg text-xs font-mono transition cursor-pointer"
                       >
                         {val}
                       </button>
@@ -604,7 +548,7 @@ export const WalletScreen: React.FC = () => {
                         setErrorMsg(null);
                         setInvestAmount(visitor.balance.toString());
                       }}
-                      className="px-3 py-1 bg-[#F27D26]/15 hover:bg-[#F27D26]/30 border border-[#F27D26]/30 text-brand-orange rounded-lg text-[11px] font-mono transition cursor-pointer"
+                      className="px-3 py-1.5 bg-[#F27D26]/15 hover:bg-[#F27D26]/30 border border-[#F27D26]/30 text-brand-orange rounded-lg text-xs font-mono transition cursor-pointer"
                     >
                       MAX
                     </button>
@@ -613,7 +557,7 @@ export const WalletScreen: React.FC = () => {
 
                 {/* Error Box */}
                 {errorMsg && (
-                  <div className="p-3 bg-red-950/30 border border-red-900/30 rounded-xl text-xs text-red-300">
+                  <div className="p-3 bg-red-950/30 border border-red-900/30 rounded-xl text-sm text-red-300">
                     {errorMsg}
                   </div>
                 )}
@@ -625,7 +569,7 @@ export const WalletScreen: React.FC = () => {
                   id="btn-confirm-investment"
                   type="submit"
                   disabled={isInvesting}
-                  className="w-full py-4 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-sm uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-brand-orange/20 active:scale-99 transition-all disabled:opacity-50"
+                  className="w-full py-4 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-base uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-brand-orange/20 active:scale-99 transition-all disabled:opacity-50"
                 >
                   {isInvesting ? (
                     <div className="flex items-center gap-2">
@@ -637,13 +581,13 @@ export const WalletScreen: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <TrendingUp className="w-4 h-4" />
+                      <TrendingUp className="w-5 h-5" />
                       <span>Confirmar Apoio</span>
                     </>
                   )}
                 </button>
                 
-                <p className="text-center text-[10px] text-white/30 font-mono uppercase tracking-wider">
+                <p className="text-center text-xs text-white/40 font-mono uppercase tracking-wider">
                   * Uma vez enviado, o crédito não poderá ser estornado.
                 </p>
               </div>
@@ -665,8 +609,8 @@ export const WalletScreen: React.FC = () => {
             {/* Flying Confetti Celebration */}
             <Confetti />
 
-            <div className="absolute top-[-10%] w-[300px] h-[300px] rounded-full bg-brand-purple-light/20 blur-[100px]" />
-            <div className="absolute bottom-[-10%] w-[300px] h-[300px] rounded-full bg-brand-orange/15 blur-[100px]" />
+            <div className="absolute top-[-10%] w-[300px] h-[300px] rounded-full bg-brand-purple-light/20 blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] w-[300px] h-[300px] rounded-full bg-brand-orange/15 blur-[100px] pointer-events-none" />
 
             <motion.div
               initial={{ scale: 0.8, y: 50, opacity: 0 }}
@@ -686,10 +630,10 @@ export const WalletScreen: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <h2 id="title-transacao-concluida" className="text-2xl font-display font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200">
+                <h2 id="title-transacao-concluida" className="text-3xl font-display font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200">
                   Apoio Enviado!
                 </h2>
-                <p className="text-xs text-white/50 leading-relaxed">
+                <p className="text-sm text-white/70 leading-relaxed">
                   Você enviou com sucesso seus créditos de apoio para a produção estudantil:
                 </p>
               </div>
@@ -697,23 +641,23 @@ export const WalletScreen: React.FC = () => {
               {/* Transaction Receipt Card */}
               <div className="p-4 bg-brand-surface border border-brand-border rounded-2xl text-left space-y-2 font-mono text-xs shadow-md">
                 <div className="flex justify-between">
-                  <span className="text-white/40">Destinatário:</span>
-                  <span className="text-slate-200 font-sans font-bold">{lastSuccessTx.agencyName}</span>
+                  <span className="text-white/50">Destinatário:</span>
+                  <span className="text-slate-100 font-sans font-bold">{lastSuccessTx.agencyName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-white/40">Valor Pago:</span>
-                  <span className="text-brand-orange font-bold font-mono">{lastSuccessTx.amount} ECOS</span>
+                  <span className="text-white/50">Valor Pago:</span>
+                  <span className="text-brand-orange font-bold font-mono">{lastSuccessTx.amount} créditos</span>
                 </div>
                 <div className="flex justify-between border-t border-brand-border pt-2 mt-1">
-                  <span className="text-white/40">Comprovante:</span>
-                  <span className="text-[#7C3AED] text-[10px] font-bold uppercase tracking-wider">Autenticado</span>
+                  <span className="text-white/50">Comprovante:</span>
+                  <span className="text-[#7C3AED] text-xs font-bold uppercase tracking-wider">Autenticado</span>
                 </div>
               </div>
 
               <button
                 id="btn-success-close"
                 onClick={() => { setShowSuccess(false); setLastSuccessTx(null); }}
-                className="w-full py-4 bg-white text-brand-dark hover:bg-slate-100 font-display font-bold text-sm uppercase tracking-wider rounded-2xl transition cursor-pointer"
+                className="w-full py-4 bg-white text-brand-dark hover:bg-slate-100 font-display font-bold text-base uppercase tracking-wider rounded-2xl transition cursor-pointer"
               >
                 Retornar à Carteira
               </button>

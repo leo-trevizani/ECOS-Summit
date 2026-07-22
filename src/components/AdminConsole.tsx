@@ -343,9 +343,9 @@ export const AdminConsole: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-dark text-white relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8">
       {/* Glow */}
-      <div className="absolute top-[-10%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-orange opacity-15 blur-[100px]" />
+      <div className="absolute top-[-10%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-orange opacity-15 blur-[100px] pointer-events-none" />
 
       <div className="flex flex-col w-full pb-6">
         
@@ -355,104 +355,63 @@ export const AdminConsole: React.FC = () => {
             <button
               id="btn-admin-back"
               onClick={() => navigate('welcome')}
-              className="p-1.5 rounded-full bg-brand-surface border border-brand-border text-slate-300 hover:text-white transition cursor-pointer"
+              className="p-2 rounded-full bg-brand-surface border border-brand-border text-slate-300 hover:text-white transition cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <span className="text-[9px] font-bold text-brand-orange flex items-center gap-1 font-mono uppercase tracking-wider">
-                <Database className="w-3.5 h-3.5 text-brand-orange" />
+              <span className="text-xs font-bold text-brand-orange flex items-center gap-1 font-mono uppercase tracking-wider">
+                <Database className="w-4 h-4 text-brand-orange" />
                 ECOS CORE CONSOLE
               </span>
-              <h1 className="text-sm font-display font-bold text-slate-200">Administrador Geral</h1>
+              <h1 className="text-base font-display font-bold text-slate-100">Administrador Geral</h1>
             </div>
           </div>
           
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button 
               id="btn-seed-data"
               onClick={handleSeedDemoData}
-              className="text-[9px] font-mono font-bold uppercase tracking-wider text-brand-orange hover:text-white border border-brand-orange/30 hover:bg-brand-orange/10 transition px-2 py-1.5 rounded-lg flex items-center gap-0.5 cursor-pointer"
+              className="text-xs font-mono font-bold uppercase tracking-wider text-brand-orange hover:text-white border border-brand-orange/30 hover:bg-brand-orange/10 transition px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
               title="Seedar Dados Demonstrativos"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-4 h-4" />
               <span>Seed</span>
             </button>
             <button 
               id="btn-export-csv"
               onClick={handleExportCSV}
-              className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-400 hover:text-white border border-emerald-500/30 hover:bg-emerald-500/10 transition px-2 py-1.5 rounded-lg flex items-center gap-0.5 cursor-pointer"
+              className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 hover:text-white border border-emerald-500/30 hover:bg-emerald-500/10 transition px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
               title="Exportar Transações para CSV"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-4 h-4" />
               <span>CSV</span>
             </button>
           </div>
         </div>
 
-        {/* Tab Selection */}
+        {/* Tab Selection Dropdown */}
         <div className="px-6 py-3 shrink-0 z-10">
-          <div className="flex p-1 bg-brand-surface border border-brand-border rounded-xl">
-            <button
-              id="tab-ranking"
-              onClick={() => { setActiveTab('ranking'); setErrorMsg(null); setSuccessMsg(null); }}
-              className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                activeTab === 'ranking' ? 'bg-[#7C3AED] text-white' : 'text-slate-400 hover:text-white'
-              }`}
+          <div className="bg-brand-surface border border-brand-border rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 shadow-md">
+            <label htmlFor="admin-tab-select" className="text-xs font-mono text-slate-400 uppercase tracking-widest font-bold shrink-0">
+              SEÇÃO ADMINISTRATIVA:
+            </label>
+            <select
+              id="admin-tab-select"
+              value={activeTab}
+              onChange={(e) => {
+                setActiveTab(e.target.value as any);
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className="w-full bg-brand-dark border border-brand-border text-slate-100 font-display font-bold text-sm py-2.5 px-3 rounded-xl focus:outline-none focus:border-brand-purple-light cursor-pointer transition-colors"
             >
-              <span className="flex items-center justify-center gap-1">
-                <Trophy className="w-3.5 h-3.5" />
-                Ranking
-              </span>
-            </button>
-            <button
-              id="tab-award"
-              onClick={() => { setActiveTab('award'); setErrorMsg(null); setSuccessMsg(null); }}
-              className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                activeTab === 'award' ? 'bg-[#7C3AED] text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <Award className="w-3.5 h-3.5" />
-                Premiação
-              </span>
-            </button>
-            <button
-              id="tab-blacklist"
-              onClick={() => { setActiveTab('blacklist'); setErrorMsg(null); setSuccessMsg(null); }}
-              className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                activeTab === 'blacklist' ? 'bg-[#7C3AED] text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                Blocked
-              </span>
-            </button>
-            <button
-              id="tab-visitors"
-              onClick={() => { setActiveTab('visitors'); setErrorMsg(null); setSuccessMsg(null); }}
-              className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                activeTab === 'visitors' ? 'bg-[#7C3AED] text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <Users className="w-3.5 h-3.5" />
-                Apoiadores
-              </span>
-            </button>
-            <button
-              id="tab-agencies"
-              onClick={() => { setActiveTab('agencies'); setErrorMsg(null); setSuccessMsg(null); }}
-              className={`flex-1 py-2 text-center text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                activeTab === 'agencies' ? 'bg-[#7C3AED] text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <Building2 className="w-3.5 h-3.5" />
-                Agências
-              </span>
-            </button>
+              <option value="ranking">🏆 Ranking Geral</option>
+              <option value="award">🎗️ Premiação Oficial</option>
+              <option value="blacklist">🛡️ CPFs Bloqueados</option>
+              <option value="visitors">👥 Lista de Apoiadores</option>
+              <option value="agencies">🏢 Gerenciar Agências</option>
+            </select>
           </div>
         </div>
 
@@ -461,13 +420,15 @@ export const AdminConsole: React.FC = () => {
           
           {/* Status Messages */}
           {errorMsg && (
-            <div className="p-3 mb-3 bg-red-950/30 border border-red-900/30 rounded-xl text-xs text-red-300">
-              {errorMsg}
+            <div className="p-3.5 mb-3 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-200 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{errorMsg}</span>
             </div>
           )}
           {successMsg && (
-            <div className="p-3 mb-3 bg-emerald-950/30 border border-emerald-900/30 rounded-xl text-xs text-emerald-300">
-              {successMsg}
+            <div className="p-3.5 mb-3 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-xs text-emerald-200 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{successMsg}</span>
             </div>
           )}
 
@@ -475,8 +436,8 @@ export const AdminConsole: React.FC = () => {
           {activeTab === 'ranking' && (
             <div className="flex-1 flex flex-col space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="text-[10px] font-bold text-white/50 font-mono uppercase tracking-wider">ECOS LEADERBOARD RANKING</h3>
-                <span className="text-[9px] font-mono text-brand-purple-light flex items-center gap-1">● Live Updates</span>
+                <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider">RANKING DE CRÉDITOS</h3>
+                <span className="text-xs font-mono text-brand-purple-light flex items-center gap-1">● Live Updates</span>
               </div>
 
               {/* Ranking Grid */}
@@ -490,8 +451,8 @@ export const AdminConsole: React.FC = () => {
                       className="p-4 bg-brand-surface border border-brand-border rounded-2xl flex flex-col gap-2 shadow-sm"
                     >
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-xs ${
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center font-mono font-bold text-xs ${
                             index === 0 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
                             index === 1 ? 'bg-slate-400/20 text-slate-300 border border-slate-400/30' :
                             index === 2 ? 'bg-amber-800/20 text-amber-500 border border-amber-800/30' :
@@ -501,15 +462,15 @@ export const AdminConsole: React.FC = () => {
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <h4 className="text-xs font-bold text-slate-100">{agency.name}</h4>
-                              {isTopOne && <Sparkles className="w-3.5 h-3.5 text-yellow-400 animate-pulse" />}
+                              <h4 className="text-sm font-bold text-slate-100">{agency.name}</h4>
+                              {isTopOne && <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />}
                             </div>
-                            <span className="text-[9px] text-white/40 font-sans">ID: {agency.id}</span>
+                            <span className="text-xs text-white/40 font-sans">ID: {agency.id}</span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-mono font-bold text-brand-orange">{agency.balance.toLocaleString('pt-BR')}</span>
-                          <span className="text-[9px] font-mono text-white/40 block">ECOS</span>
+                          <span className="text-sm font-mono font-bold text-brand-orange">{agency.balance.toLocaleString('pt-BR')}</span>
+                          <span className="text-xs font-mono text-white/40 block">créditos</span>
                         </div>
                       </div>
 
@@ -562,13 +523,13 @@ export const AdminConsole: React.FC = () => {
                     </p>
 
                     <div className="py-2.5 px-4 bg-brand-dark/80 rounded-2xl inline-flex flex-col items-center border border-brand-border/40">
-                      <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest">Receita Acumulada</span>
-                      <span className="text-xl font-mono font-black text-yellow-400">
-                        {rankedAgencies[0].balance.toLocaleString('pt-BR')} <span className="text-xs">ECOS</span>
+                      <span className="text-xs font-mono text-white/50 uppercase tracking-widest">Receita Acumulada</span>
+                      <span className="text-2xl font-mono font-black text-yellow-400">
+                        {rankedAgencies[0].balance.toLocaleString('pt-BR')} <span className="text-sm">créditos</span>
                       </span>
                     </div>
 
-                    <p className="text-[10px] text-yellow-500/70 font-sans font-medium mt-4">
+                    <p className="text-xs text-yellow-500/80 font-sans font-medium mt-4">
                       Agraciada com o prestigiado <strong>Troféu Escolha do Mercado</strong> por votação soberana do público no ECOS Summit.
                     </p>
                   </div>
@@ -577,16 +538,16 @@ export const AdminConsole: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     {rankedAgencies[1] && (
                       <div className="p-4 bg-brand-surface border border-slate-400/20 rounded-2xl text-center">
-                        <span className="text-[9px] font-mono px-2 py-0.5 bg-slate-400/10 text-slate-300 rounded-full border border-slate-400/20 uppercase tracking-wider inline-block mb-1.5">🥈 2º Lugar</span>
-                        <h4 className="text-xs font-bold text-slate-200 truncate">{rankedAgencies[1].name}</h4>
-                        <p className="text-[11px] font-mono font-bold text-slate-400 mt-1">{rankedAgencies[1].balance.toLocaleString('pt-BR')} ECOS</p>
+                        <span className="text-xs font-mono px-2.5 py-0.5 bg-slate-400/10 text-slate-300 rounded-full border border-slate-400/20 uppercase tracking-wider inline-block mb-1.5">🥈 2º Lugar</span>
+                        <h4 className="text-sm font-bold text-slate-100 truncate">{rankedAgencies[1].name}</h4>
+                        <p className="text-xs font-mono font-bold text-slate-300 mt-1">{rankedAgencies[1].balance.toLocaleString('pt-BR')} créditos</p>
                       </div>
                     )}
                     {rankedAgencies[2] && (
                       <div className="p-4 bg-brand-surface border border-amber-800/20 rounded-2xl text-center">
-                        <span className="text-[9px] font-mono px-2 py-0.5 bg-amber-800/10 text-amber-600 rounded-full border border-amber-800/20 uppercase tracking-wider inline-block mb-1.5">🥉 3º Lugar</span>
-                        <h4 className="text-xs font-bold text-slate-200 truncate">{rankedAgencies[2].name}</h4>
-                        <p className="text-[11px] font-mono font-bold text-amber-600 mt-1">{rankedAgencies[2].balance.toLocaleString('pt-BR')} ECOS</p>
+                        <span className="text-xs font-mono px-2.5 py-0.5 bg-amber-800/10 text-amber-500 rounded-full border border-amber-800/20 uppercase tracking-wider inline-block mb-1.5">🥉 3º Lugar</span>
+                        <h4 className="text-sm font-bold text-slate-100 truncate">{rankedAgencies[2].name}</h4>
+                        <p className="text-xs font-mono font-bold text-amber-500 mt-1">{rankedAgencies[2].balance.toLocaleString('pt-BR')} créditos</p>
                       </div>
                     )}
                   </div>
@@ -594,8 +555,8 @@ export const AdminConsole: React.FC = () => {
               ) : (
                 <div className="p-8 bg-brand-surface border border-brand-border rounded-2xl text-center space-y-2">
                   <Award className="w-10 h-10 text-slate-600 mx-auto animate-pulse" />
-                  <h3 className="text-xs font-bold text-slate-300">Sem Votação Registrada</h3>
-                  <p className="text-[11px] text-white/40 leading-relaxed">
+                  <h3 className="text-sm font-bold text-slate-200">Sem Votação Registrada</h3>
+                  <p className="text-xs text-white/50 leading-relaxed">
                     Nenhum voto de crédito foi recebido por nenhuma agência estudantil até o momento. Registre transações de apoio para gerar a premiação em tempo real!
                   </p>
                 </div>
@@ -608,7 +569,7 @@ export const AdminConsole: React.FC = () => {
             <div className="flex-1 flex flex-col space-y-4">
               {/* Form to Block CPF */}
               <form onSubmit={handleAddBlacklist} className="p-4 bg-brand-surface border border-brand-border rounded-2xl space-y-3 shadow-md">
-                <span className="block text-[10px] font-bold text-white/50 font-mono tracking-widest uppercase">Bloquear CPF Individual</span>
+                <span className="block text-xs font-bold text-white/60 font-mono tracking-widest uppercase">Bloquear CPF Individual</span>
                 <div className="flex gap-2">
                   <input
                     id="input-block-cpf"
@@ -622,13 +583,13 @@ export const AdminConsole: React.FC = () => {
                       setSuccessMsg(null);
                       setNewBlacklistCpf(e.target.value);
                     }}
-                    className="flex-1 px-3 py-2 bg-brand-dark border border-brand-border rounded-xl font-mono text-xs text-white focus:outline-none focus:border-brand-orange"
+                    className="flex-1 px-3.5 py-2.5 bg-brand-dark border border-brand-border rounded-xl font-mono text-sm text-white focus:outline-none focus:border-brand-orange"
                     required
                   />
                   <button
                     id="btn-add-blacklist"
                     type="submit"
-                    className="px-4 py-2 bg-brand-orange hover:bg-brand-orange-hover text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition-all"
+                    className="px-4 py-2.5 bg-brand-orange hover:bg-brand-orange-hover text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition-all"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Bloquear</span>
@@ -638,7 +599,7 @@ export const AdminConsole: React.FC = () => {
 
               {/* Bulk Import CPFs */}
               <div className="p-4 bg-brand-surface border border-brand-border rounded-2xl space-y-3 shadow-md">
-                <span className="block text-[10px] font-bold text-white/50 font-mono tracking-widest uppercase">Importar CPFs em Lote (Um por linha)</span>
+                <span className="block text-xs font-bold text-white/60 font-mono tracking-widest uppercase">Importar CPFs em Lote (Um por linha)</span>
                 <textarea
                   id="textarea-bulk-cpfs"
                   rows={3}
@@ -649,40 +610,40 @@ export const AdminConsole: React.FC = () => {
                     setSuccessMsg(null);
                     setBulkCpfInput(e.target.value);
                   }}
-                  className="w-full p-2.5 bg-brand-dark border border-brand-border rounded-xl font-mono text-[11px] text-white focus:outline-none focus:border-brand-orange resize-none"
+                  className="w-full p-3 bg-brand-dark border border-brand-border rounded-xl font-mono text-xs text-white focus:outline-none focus:border-brand-orange resize-none"
                 />
                 <button
                   type="button"
                   onClick={handleBulkImportCPFs}
-                  className="w-full py-2 bg-brand-purple hover:bg-[#7C3AED] border border-brand-purple-light/20 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  className="w-full py-2.5 bg-brand-purple hover:bg-[#7C3AED] border border-brand-purple-light/20 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   <span>Importar CPFs</span>
                 </button>
               </div>
 
               {/* Blacklist Scroll */}
               <div className="flex-1 flex flex-col space-y-2">
-                <h3 className="text-[10px] font-bold text-white/40 font-mono uppercase tracking-wider">Lista de Exclusão ({state.blacklist.length})</h3>
+                <h3 className="text-xs font-bold text-white/50 font-mono uppercase tracking-wider">Lista de Exclusão ({state.blacklist.length})</h3>
                 
                 <div className="flex-1 bg-brand-surface border border-brand-border rounded-2xl overflow-hidden min-h-[140px] flex flex-col">
                   <div className="overflow-y-auto max-h-[180px] no-scrollbar">
                     {state.blacklist.length === 0 ? (
-                      <p className="p-4 text-center text-slate-500 italic text-xs">Nenhum CPF bloqueado no momento.</p>
+                      <p className="p-4 text-center text-slate-400 italic text-xs">Nenhum CPF bloqueado no momento.</p>
                     ) : (
                       <ul className="divide-y divide-brand-border">
                         {state.blacklist.map(cpf => (
                           <li key={cpf} className="p-3 flex justify-between items-center text-xs font-mono">
-                            <span className="text-slate-300">{formatCPF(cpf)}</span>
+                            <span className="text-slate-200">{formatCPF(cpf)}</span>
                             <button
                               onClick={() => {
                                 removeCpfFromBlacklist(cpf);
                                 setSuccessMsg(`CPF ${formatCPF(cpf)} removido da blacklist.`);
                               }}
-                              className="p-1 text-slate-500 hover:text-red-400 transition cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-red-400 transition cursor-pointer"
                               title="Remover Bloqueio"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </li>
                         ))}
@@ -697,30 +658,30 @@ export const AdminConsole: React.FC = () => {
           {/* TAB 4: VISITANTES REGISTRADOS */}
           {activeTab === 'visitors' && (
             <div className="flex-1 flex flex-col space-y-3">
-              <h3 className="text-[10px] font-bold text-white/50 font-mono uppercase tracking-wider">APOIADORES CADASTRADOS ({state.visitors.length})</h3>
+              <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider">APOIADORES CADASTRADOS ({state.visitors.length})</h3>
               
               <div className="flex-1 bg-brand-surface border border-brand-border rounded-2xl overflow-hidden flex flex-col min-h-[220px]">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className="border-b border-brand-border bg-brand-dark/50 text-white/40 font-mono text-[9px] tracking-wider uppercase">
-                      <th className="p-3">Nome</th>
-                      <th className="p-3">CPF</th>
-                      <th className="p-3 text-right">Saldo</th>
+                    <tr className="border-b border-brand-border bg-brand-dark/50 text-white/50 font-mono text-xs tracking-wider uppercase">
+                      <th className="p-3.5">Nome</th>
+                      <th className="p-3.5">CPF</th>
+                      <th className="p-3.5 text-right">Saldo</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brand-border">
                     {state.visitors.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="p-8 text-center text-slate-500 italic">
+                        <td colSpan={3} className="p-8 text-center text-slate-400 italic text-sm">
                           Nenhum visitante cadastrado até o momento.
                         </td>
                       </tr>
                     ) : (
                       state.visitors.map(visitor => (
                         <tr key={visitor.cpf} className="hover:bg-white/2 transition">
-                          <td className="p-3 font-medium text-slate-300">{visitor.name}</td>
-                          <td className="p-3 font-mono text-slate-400">{formatCPF(visitor.cpf)}</td>
-                          <td className="p-3 text-right font-mono font-bold text-brand-orange">{visitor.balance} ECOS</td>
+                          <td className="p-3.5 font-medium text-slate-200">{visitor.name}</td>
+                          <td className="p-3.5 font-mono text-slate-400">{formatCPF(visitor.cpf)}</td>
+                          <td className="p-3.5 text-right font-mono font-bold text-brand-orange">{visitor.balance} créditos</td>
                         </tr>
                       ))
                     )}
@@ -736,11 +697,11 @@ export const AdminConsole: React.FC = () => {
               {/* Form to Create/Edit Agency */}
               <form onSubmit={handleAgencyFormSubmit} className="p-4 bg-brand-surface border border-brand-border rounded-2xl space-y-3 shadow-md">
                 <div className="flex justify-between items-center">
-                  <span className="block text-[10px] font-bold text-white/50 font-mono tracking-widest uppercase">
+                  <span className="block text-xs font-bold text-white/60 font-mono tracking-widest uppercase">
                     {editingAgencyId ? 'Editar Agência Estudantil' : 'Cadastrar Nova Agência Estudantil'}
                   </span>
                   {editingAgencyId && (
-                    <span className="text-[9px] font-mono font-bold text-brand-orange bg-brand-orange/10 px-2 py-0.5 rounded-full border border-brand-orange/20 animate-pulse">
+                    <span className="text-xs font-mono font-bold text-brand-orange bg-brand-orange/10 px-2.5 py-0.5 rounded-full border border-brand-orange/20 animate-pulse">
                       Modo de Edição
                     </span>
                   )}
@@ -748,7 +709,7 @@ export const AdminConsole: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold font-mono text-white/40 uppercase tracking-wider block">
+                    <label className="text-xs font-bold font-mono text-white/50 uppercase tracking-wider block">
                       Nome da Agência *
                     </label>
                     <input
@@ -757,13 +718,13 @@ export const AdminConsole: React.FC = () => {
                       placeholder="Ex: Agência Vortex"
                       value={formAgencyName}
                       onChange={(e) => setFormAgencyName(e.target.value)}
-                      className="w-full px-3 py-2 bg-brand-dark border border-brand-border rounded-xl font-sans text-xs text-white focus:outline-none focus:border-brand-orange"
+                      className="w-full px-3.5 py-2.5 bg-brand-dark border border-brand-border rounded-xl font-sans text-sm text-white focus:outline-none focus:border-brand-orange"
                       required
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold font-mono text-white/40 uppercase tracking-wider block">
+                    <label className="text-xs font-bold font-mono text-white/50 uppercase tracking-wider block">
                       ID / Slug único * (letras, números e hífens)
                     </label>
                     <input
@@ -777,16 +738,16 @@ export const AdminConsole: React.FC = () => {
                         }
                       }}
                       disabled={!!editingAgencyId}
-                      className="w-full px-3 py-2 bg-brand-dark border border-brand-border rounded-xl font-mono text-xs text-white focus:outline-none focus:border-brand-orange disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full px-3.5 py-2.5 bg-brand-dark border border-brand-border rounded-xl font-mono text-sm text-white focus:outline-none focus:border-brand-orange disabled:opacity-40 disabled:cursor-not-allowed"
                       required
                     />
-                    <span className="text-[8px] text-white/30 block mt-0.5 font-mono">
+                    <span className="text-[10px] text-white/40 block mt-0.5 font-mono">
                       Usado para deep linking: /investir/[id]
                     </span>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold font-mono text-white/40 uppercase tracking-wider block">
+                    <label className="text-xs font-bold font-mono text-white/50 uppercase tracking-wider block">
                       Token / Chave de Acesso * (letras, números e hífens)
                     </label>
                     <input
@@ -795,16 +756,16 @@ export const AdminConsole: React.FC = () => {
                       placeholder="Ex: vortex-admin-99"
                       value={formAgencyToken}
                       onChange={(e) => setFormAgencyToken(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                      className="w-full px-3 py-2 bg-brand-dark border border-brand-border rounded-xl font-mono text-xs text-white focus:outline-none focus:border-brand-orange"
+                      className="w-full px-3.5 py-2.5 bg-brand-dark border border-brand-border rounded-xl font-mono text-sm text-white focus:outline-none focus:border-brand-orange"
                       required
                     />
-                    <span className="text-[8px] text-white/30 block mt-0.5 font-mono">
+                    <span className="text-[10px] text-white/40 block mt-0.5 font-mono">
                       Usado para acessar o painel: /agencia/[token]
                     </span>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold font-mono text-white/40 uppercase tracking-wider block">
+                    <label className="text-xs font-bold font-mono text-white/50 uppercase tracking-wider block">
                       Slogan ou Descrição Curta
                     </label>
                     <input
@@ -813,7 +774,7 @@ export const AdminConsole: React.FC = () => {
                       placeholder="Ex: Inovação e design para o futuro."
                       value={formAgencySlogan}
                       onChange={(e) => setFormAgencySlogan(e.target.value)}
-                      className="w-full px-3 py-2 bg-brand-dark border border-brand-border rounded-xl font-sans text-xs text-white focus:outline-none focus:border-brand-orange"
+                      className="w-full px-3.5 py-2.5 bg-brand-dark border border-brand-border rounded-xl font-sans text-sm text-white focus:outline-none focus:border-brand-orange"
                     />
                   </div>
                 </div>
@@ -832,9 +793,9 @@ export const AdminConsole: React.FC = () => {
                   <button
                     id="btn-submit-agency"
                     type="submit"
-                    className="px-4 py-2 bg-brand-orange hover:bg-brand-orange-hover text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition-all"
+                    className="px-4 py-2.5 bg-brand-orange hover:bg-brand-orange-hover text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition-all"
                   >
-                    {editingAgencyId ? <Pencil className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                    {editingAgencyId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                     <span>{editingAgencyId ? 'Salvar Alterações' : 'Criar Agência'}</span>
                   </button>
                 </div>
@@ -842,47 +803,47 @@ export const AdminConsole: React.FC = () => {
 
               {/* Agencies List */}
               <div className="flex-1 flex flex-col space-y-2">
-                <h3 className="text-[10px] font-bold text-white/40 font-mono uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-white/50 font-mono uppercase tracking-wider">
                   Agências Registradas ({state.agencies.length})
                 </h3>
                 
                 <div className="flex-1 bg-brand-surface border border-brand-border rounded-2xl overflow-hidden min-h-[220px] flex flex-col">
                   <div className="overflow-y-auto max-h-[300px] no-scrollbar divide-y divide-brand-border">
                     {state.agencies.length === 0 ? (
-                      <p className="p-8 text-center text-slate-500 italic text-xs">Nenhuma agência cadastrada no momento.</p>
+                      <p className="p-8 text-center text-slate-400 italic text-sm">Nenhuma agência cadastrada no momento.</p>
                     ) : (
                       state.agencies.map(agency => (
                         <div key={agency.id} className="p-4 flex justify-between items-start gap-4 hover:bg-white/2 transition">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="text-xs font-bold text-slate-100">{agency.name}</h4>
-                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/20 rounded">
-                                {agency.balance.toLocaleString('pt-BR')} ECOS
+                              <h4 className="text-sm font-bold text-slate-100">{agency.name}</h4>
+                              <span className="text-xs font-mono font-bold px-2 py-0.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/20 rounded">
+                                {agency.balance.toLocaleString('pt-BR')} créditos
                               </span>
                             </div>
-                            <p className="text-[10px] text-white/50 truncate mt-0.5">
-                              {agency.slogan || <span className="italic text-white/20">Sem slogan cadastrado</span>}
+                            <p className="text-xs text-white/60 truncate mt-0.5">
+                              {agency.slogan || <span className="italic text-white/30">Sem slogan cadastrado</span>}
                             </p>
-                            <div className="flex items-center gap-3 mt-1.5 text-[9px] font-mono text-white/30 flex-wrap">
-                              <span>ID/Link: <strong className="text-slate-400 font-bold">/investir/{agency.id}</strong></span>
+                            <div className="flex items-center gap-3 mt-1.5 text-xs font-mono text-white/40 flex-wrap">
+                              <span>ID/Link: <strong className="text-slate-300 font-bold">/investir/{agency.id}</strong></span>
                               <span>•</span>
-                              <span>Dashboard: <strong className="text-slate-400 font-bold">/agencia/{agency.token}</strong></span>
+                              <span>Dashboard: <strong className="text-slate-300 font-bold">/agencia/{agency.token}</strong></span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               onClick={() => handleEditAgencyClick(agency)}
-                              className="p-1.5 rounded-lg border border-brand-border/40 bg-brand-dark/50 text-slate-400 hover:text-brand-orange hover:border-brand-orange/30 transition cursor-pointer"
+                              className="p-2 rounded-lg border border-brand-border/40 bg-brand-dark/50 text-slate-400 hover:text-brand-orange hover:border-brand-orange/30 transition cursor-pointer"
                               title="Editar Agência"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteAgencyClick(agency.id, agency.name)}
-                              className="p-1.5 rounded-lg border border-brand-border/40 bg-brand-dark/50 text-slate-400 hover:text-red-400 hover:border-red-500/30 transition cursor-pointer"
+                              className="p-2 rounded-lg border border-brand-border/40 bg-brand-dark/50 text-slate-400 hover:text-red-400 hover:border-red-500/30 transition cursor-pointer"
                               title="Excluir Agência"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -908,7 +869,7 @@ export const AdminConsole: React.FC = () => {
             }}
             className="w-full py-3 bg-red-950/20 border border-red-900/40 text-red-300 hover:bg-red-950/40 font-mono text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
           >
-            <Database className="w-3.5 h-3.5 text-red-400" />
+            <Database className="w-4 h-4 text-red-400" />
             <span>Limpar Base de Dados (Reset)</span>
           </button>
         </div>

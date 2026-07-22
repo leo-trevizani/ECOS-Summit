@@ -122,9 +122,9 @@ export const AgencyDashboard: React.FC = () => {
   const agencyTxList = state.transactions.filter(tx => tx.agencyId === agency.id);
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-dark text-white relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8">
       {/* Decorative Glow */}
-      <div className="absolute top-[-20%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-20 blur-[100px]" />
+      <div className="absolute top-[-20%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-20 blur-[100px] pointer-events-none" />
 
       <div className="flex flex-col w-full pb-6">
         
@@ -134,59 +134,59 @@ export const AgencyDashboard: React.FC = () => {
             <button
               id="btn-dashboard-back"
               onClick={() => navigate('welcome')}
-              className="p-1.5 rounded-full bg-brand-surface border border-brand-border text-slate-300 hover:text-white transition cursor-pointer"
+              className="p-2 rounded-full bg-brand-surface border border-brand-border text-slate-300 hover:text-white transition cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <span className="text-[9px] font-bold text-brand-orange flex items-center gap-1 font-mono uppercase tracking-wider">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-orange" />
+              <span className="text-xs font-bold text-brand-orange flex items-center gap-1 font-mono uppercase tracking-wider">
+                <ShieldCheck className="w-4 h-4 text-brand-orange" />
                 PAINEL SEGURO DA EXPOSIÇÃO
               </span>
-              <h1 className="text-sm font-display font-bold text-slate-200">{agency.name}</h1>
+              <h1 className="text-base font-display font-bold text-slate-100">{agency.name}</h1>
             </div>
           </div>
           
           <button 
             id="btn-refresh-dashboard"
             onClick={() => navigate(`agencia/${agency.token}`)}
-            className="p-2 bg-brand-surface border border-brand-border rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-2.5 bg-brand-surface border border-brand-border rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
             title="Atualizar Dados"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
           </button>
         </div>
 
         {/* Balance Display */}
-        <div className="px-6 py-2 shrink-0 z-10">
+        <div className="px-6 py-3 shrink-0 z-10">
           <div className="bg-brand-surface border border-brand-border rounded-3xl p-6 relative overflow-hidden shadow-xl">
-            <div className="absolute top-[-30px] right-[-30px] w-24 h-24 bg-brand-orange/10 rounded-full blur-2xl animate-pulse" />
+            <div className="absolute top-[-30px] right-[-30px] w-24 h-24 bg-brand-orange/10 rounded-full blur-2xl animate-pulse pointer-events-none" />
             
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider block font-mono">
+              <span className="text-xs font-bold text-white/60 uppercase tracking-wider block font-mono">
                 RECEITA TOTAL ACUMULADA
               </span>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex items-baseline gap-2">
                 <span id="label-agency-balance-value" className="text-4xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200">
                   {agency.balance.toLocaleString('pt-BR')}
                 </span>
-                <span className="text-sm font-mono font-bold text-brand-orange">ECOS</span>
+                <span className="text-base font-mono font-bold text-brand-orange">créditos</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-t border-brand-border pt-4 mt-4">
               <div className="space-y-0.5">
-                <span className="text-[9px] font-bold text-white/40 block font-mono">TOTAL DE APOIADORES</span>
-                <div className="flex items-center gap-1">
-                  <Users className="w-4.5 h-4.5 text-brand-purple-light" />
-                  <span className="text-sm font-semibold font-mono">{agencyTxList.length}</span>
+                <span className="text-xs font-bold text-white/50 block font-mono">TOTAL DE APOIADORES</span>
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-5 h-5 text-brand-purple-light" />
+                  <span className="text-base font-semibold font-mono">{agencyTxList.length}</span>
                 </div>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[9px] font-bold text-white/40 block font-mono">TENDÊNCIA ATUAL</span>
-                <div className="flex items-center gap-1 text-emerald-400">
-                  <TrendingUp className="w-4.5 h-4.5" />
-                  <span className="text-xs font-semibold font-mono">Alta</span>
+                <span className="text-xs font-bold text-white/50 block font-mono">TENDÊNCIA ATUAL</span>
+                <div className="flex items-center gap-1.5 text-emerald-400">
+                  <TrendingUp className="w-5 h-5" />
+                  <span className="text-sm font-semibold font-mono">Alta</span>
                 </div>
               </div>
             </div>
@@ -196,40 +196,40 @@ export const AgencyDashboard: React.FC = () => {
         {/* Transactions list */}
         <div className="flex-1 px-6 pt-4 flex flex-col z-10">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-[10px] font-bold text-white/50 font-mono uppercase tracking-wider">ORIGEM DOS CRÉDITOS (APOIADORES)</h3>
-            <span className="text-[10px] font-mono text-slate-500">Event Logs</span>
+            <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider">ORIGEM DOS CRÉDITOS (APOIADORES)</h3>
+            <span className="text-xs font-mono text-slate-400">Event Logs</span>
           </div>
 
           <div className="flex-1 bg-brand-surface border border-brand-border rounded-2xl overflow-hidden flex flex-col min-h-[220px]">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-sm border-collapse">
                 <thead>
-                  <tr className="border-b border-brand-border bg-brand-dark/50 text-white/40 font-mono text-[10px] tracking-wider uppercase">
-                    <th className="p-3">Visitante</th>
-                    <th className="p-3 text-right">Valor</th>
-                    <th className="p-3 text-right">Hora</th>
+                  <tr className="border-b border-brand-border bg-brand-dark/50 text-white/50 font-mono text-xs tracking-wider uppercase">
+                    <th className="p-3.5">Visitante</th>
+                    <th className="p-3.5 text-right">Valor</th>
+                    <th className="p-3.5 text-right">Hora</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border">
                   {agencyTxList.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="p-8 text-center text-slate-500 italic">
+                      <td colSpan={3} className="p-8 text-center text-slate-400 italic text-sm">
                         Nenhum crédito recebido ainda nesta feira. Divulgue seu Pitch!
                       </td>
                     </tr>
                   ) : (
                     agencyTxList.map(tx => (
                       <tr key={tx.id} className="hover:bg-white/2 transition">
-                        <td className="p-3 font-medium text-slate-300">
+                        <td className="p-3.5 font-medium text-slate-200">
                           {tx.visitorName.split(' ')[0]} 
-                          <span className="text-[9px] text-slate-500 font-mono block">
+                          <span className="text-xs text-slate-400 font-mono block mt-0.5">
                             CPF: {tx.visitorCpf.slice(0, 3)}...
                           </span>
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-brand-orange">
+                        <td className="p-3.5 text-right font-mono font-bold text-brand-orange text-base">
                           +{tx.amount}
                         </td>
-                        <td className="p-3 text-right font-mono text-slate-400 text-[11px]">
+                        <td className="p-3.5 text-right font-mono text-slate-400 text-xs">
                           {new Date(tx.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </td>
                       </tr>
@@ -244,8 +244,8 @@ export const AgencyDashboard: React.FC = () => {
       </div>
 
       {/* Footer warning */}
-      <div className="p-4 bg-brand-surface border-t border-brand-border shrink-0 text-center flex items-center justify-center gap-1.5 text-[10px] text-slate-500 font-sans">
-        <HelpCircle className="w-3.5 h-3.5 text-brand-orange" />
+      <div className="p-4 bg-brand-surface border-t border-brand-border shrink-0 text-center flex items-center justify-center gap-2 text-xs text-slate-400 font-sans">
+        <HelpCircle className="w-4 h-4 text-brand-orange shrink-0" />
         <span>Dúvidas na conciliação de saldo? Contate o Administrador Geral.</span>
       </div>
     </div>

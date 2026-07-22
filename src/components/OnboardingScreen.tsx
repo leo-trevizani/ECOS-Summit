@@ -63,25 +63,25 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen p-6 text-white bg-brand-dark relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full p-6 text-white bg-brand-dark relative pb-8">
       {/* Decorative Blur */}
-      <div className="absolute top-[-20%] right-[-25%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-15 blur-[100px]" />
-      <div className="absolute bottom-[-10%] left-[-20%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-10 blur-[80px]" />
+      <div className="absolute top-[-20%] right-[-25%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-15 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-20%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-10 blur-[80px] pointer-events-none" />
 
       {/* Header Navigation */}
       <div className="flex items-center gap-3 mb-8 z-10 pt-2">
         <button
           id="btn-back-to-welcome"
           onClick={() => navigate('welcome')}
-          className="p-2 rounded-full bg-brand-surface border border-brand-border text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+          className="p-2.5 rounded-full bg-brand-surface border border-brand-border text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
+          <h2 className="text-xs font-mono text-slate-400 uppercase tracking-widest">
             {isLogin ? 'ACESSO À CARTEIRA' : 'PASSO 1 DE 2'}
           </h2>
-          <h1 className="text-lg font-display font-bold tracking-tight text-slate-100">
+          <h1 className="text-xl font-display font-bold tracking-tight text-slate-100">
             {isLogin ? 'Entrar com CPF' : 'Cadastro de Visitante'}
           </h1>
         </div>
@@ -89,16 +89,16 @@ export const OnboardingScreen: React.FC = () => {
 
       {/* Hero Welcome Info */}
       <div className="mb-6 z-10 text-center bg-gradient-to-br from-brand-purple/20 to-transparent border border-brand-border rounded-2xl p-5 relative">
-        <div className="absolute top-2 right-2 text-brand-orange/40 animate-pulse">
-          <Sparkles className="w-4 h-4" />
+        <div className="absolute top-2.5 right-2.5 text-brand-orange/40 animate-pulse">
+          <Sparkles className="w-5 h-5" />
         </div>
-        <p className="text-xs text-white/70 leading-relaxed">
+        <p className="text-sm text-white/80 leading-relaxed">
           {isLogin ? (
             <span>Informe seu CPF abaixo para acessar seu saldo e histórico de transações da carteira digital.</span>
           ) : (
             <span>
               Para garantir a integridade do ranking das agências acadêmicas, cada visitante deve registrar seu CPF. É rápido, seguro, e garante seu crédito inicial de{' '}
-              <strong className="text-brand-orange font-bold font-mono">1.000 ECOS</strong>.
+              <strong className="text-brand-orange font-bold font-mono text-base">1.000 créditos</strong>.
             </span>
           )}
         </p>
@@ -113,13 +113,13 @@ export const OnboardingScreen: React.FC = () => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="space-y-1.5 overflow-hidden"
+              className="space-y-2 overflow-hidden"
             >
-              <label className="block text-[10px] font-bold text-white/50 font-mono tracking-widest">
+              <label className="block text-xs font-bold text-white/60 font-mono tracking-widest">
                 NOME COMPLETO
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-white/30">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-white/40">
                   <User className="w-5 h-5" />
                 </span>
                 <input
@@ -131,7 +131,7 @@ export const OnboardingScreen: React.FC = () => {
                     setError(null);
                     setName(e.target.value);
                   }}
-                  className="w-full pl-10 pr-4 py-3 bg-brand-dark border border-brand-border rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-brand-purple-light focus:ring-1 focus:ring-brand-purple-light transition-all"
+                  className="w-full pl-11 pr-4 py-3.5 bg-brand-dark border border-brand-border rounded-xl text-base text-white placeholder-white/20 focus:outline-none focus:border-brand-purple-light focus:ring-1 focus:ring-brand-purple-light transition-all"
                   disabled={isLoading}
                   required={!isLogin}
                 />
@@ -140,12 +140,12 @@ export const OnboardingScreen: React.FC = () => {
           )}
 
           {/* CPF Field */}
-          <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold text-white/50 font-mono tracking-widest">
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-white/60 font-mono tracking-widest">
               CPF
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-white/30">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-white/40">
                 <CreditCard className="w-5 h-5" />
               </span>
               <input
@@ -156,12 +156,12 @@ export const OnboardingScreen: React.FC = () => {
                 placeholder="000.000.000-00"
                 value={cpf}
                 onChange={handleCpfChange}
-                className="w-full pl-10 pr-4 py-3 bg-brand-dark border border-brand-border rounded-xl font-mono text-sm text-white placeholder-white/20 focus:outline-none focus:border-brand-purple-light focus:ring-1 focus:ring-brand-purple-light transition-all"
+                className="w-full pl-11 pr-4 py-3.5 bg-brand-dark border border-brand-border rounded-xl font-mono text-base text-white placeholder-white/20 focus:outline-none focus:border-brand-purple-light focus:ring-1 focus:ring-brand-purple-light transition-all"
                 disabled={isLoading}
                 required
               />
             </div>
-            <p className="text-[10px] text-white/30 font-mono">
+            <p className="text-xs text-white/40 font-mono">
               Seu CPF será validado matematicamente. Alunos expositores não podem ser cadastrados.
             </p>
           </div>
@@ -185,7 +185,7 @@ export const OnboardingScreen: React.FC = () => {
             id="btn-submit-onboarding"
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-sm uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-brand-orange/20 disabled:opacity-50 transition-all"
+            className="w-full py-4 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-base uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-brand-orange/20 disabled:opacity-50 transition-all"
           >
             {isLoading ? (
               <div className="flex items-center gap-2">
@@ -199,8 +199,8 @@ export const OnboardingScreen: React.FC = () => {
               <div className="flex items-center justify-center gap-2">
                 <span>{isLogin ? 'Entrar' : 'Cadastrar'}</span>
                 {!isLogin && (
-                  <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-white/20 rounded-full">
-                    +1k ECOS
+                  <span className="px-2.5 py-0.5 text-xs font-mono font-bold bg-white/20 rounded-full">
+                    +1k créditos
                   </span>
                 )}
               </div>
@@ -217,7 +217,7 @@ export const OnboardingScreen: React.FC = () => {
               setError(null);
               setIsLogin(!isLogin);
             }}
-            className="text-xs text-brand-purple-light hover:text-[#9F7AEA] font-medium transition cursor-pointer"
+            className="text-sm text-brand-purple-light hover:text-[#9F7AEA] font-medium transition cursor-pointer"
           >
             {isLogin ? 'Não possui cadastro? Criar Conta' : 'Já possui cadastro? Entrar com CPF'}
           </button>
@@ -225,7 +225,7 @@ export const OnboardingScreen: React.FC = () => {
       </div>
 
       {/* Security note */}
-      <p className="text-center text-[10px] text-white/20 mt-auto pt-4 font-sans">
+      <p className="text-center text-xs text-white/30 mt-auto pt-4 font-sans">
         Protegido por criptografia. Seus dados de CPF são de uso restrito ao ECOS Summit para assegurar as regras do evento acadêmico.
       </p>
     </div>

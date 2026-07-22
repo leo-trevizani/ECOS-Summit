@@ -44,9 +44,7 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
-      <div className="min-h-screen w-full bg-brand-dark flex flex-col font-sans antialiased selection:bg-brand-purple/40 relative">
-        <AppContent />
-      </div>
+      <AppContent />
     </AppProvider>
   );
 }
