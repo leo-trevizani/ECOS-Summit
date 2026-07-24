@@ -124,7 +124,7 @@ export const AgencyDashboard: React.FC = () => {
   const agencyTxList = state.transactions.filter(tx => tx.agencyId === agency.id);
 
   return (
-    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8 overflow-hidden">
       {/* Decorative Glow */}
       <div className="absolute top-[-20%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-20 blur-[100px] pointer-events-none" />
 

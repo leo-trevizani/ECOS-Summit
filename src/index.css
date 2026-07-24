@@ -18,17 +18,20 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
+  max-width: 100vw;
   min-height: 100%;
   background-color: #0F0A1F;
   color: #FFFFFF;
-  overflow: visible;
+  overflow-x: hidden;
 }
 
 #root {
   width: 100%;
+  max-width: 100vw;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 @theme {

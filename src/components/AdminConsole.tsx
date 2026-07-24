@@ -349,7 +349,7 @@ export const AdminConsole: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8 overflow-hidden">
       {/* Glow */}
       <div className="absolute top-[-10%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-orange opacity-15 blur-[100px] pointer-events-none" />
 

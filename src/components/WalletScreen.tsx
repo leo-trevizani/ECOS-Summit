@@ -252,7 +252,7 @@ export const WalletScreen: React.FC = () => {
   const myTransactions = state.transactions.filter(tx => tx.visitorCpf === visitor.cpf);
 
   return (
-    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8 overflow-hidden">
       {/* Glow Rings */}
       <div className="absolute top-[-25%] left-[-20%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-20 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-15%] right-[-10%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-10 blur-[80px] pointer-events-none" />

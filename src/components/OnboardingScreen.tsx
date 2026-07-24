@@ -63,7 +63,7 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-full flex-1 w-full p-6 text-white bg-brand-dark relative pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full p-6 text-white bg-brand-dark relative pb-8 overflow-hidden">
       {/* Decorative Blur */}
       <div className="absolute top-[-20%] right-[-25%] w-[350px] h-[350px] rounded-full bg-brand-purple-light opacity-15 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-20%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-10 blur-[80px] pointer-events-none" />

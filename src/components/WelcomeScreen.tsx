@@ -20,7 +20,7 @@ export const WelcomeScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-full flex-1 w-full p-6 text-white bg-brand-dark relative justify-between pb-8">
+    <div className="flex flex-col min-h-full flex-1 w-full p-6 text-white bg-brand-dark relative justify-between pb-8 overflow-hidden">
       {/* Decorative Blur Spheres */}
       <div className="absolute top-[-10%] left-[-20%] w-[300px] h-[300px] rounded-full bg-brand-purple-light opacity-20 blur-[80px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[300px] h-[300px] rounded-full bg-brand-orange opacity-20 blur-[80px] pointer-events-none" />
