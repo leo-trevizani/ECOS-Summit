@@ -22,8 +22,13 @@ import {
   Download,
   Award,
   Lock,
-  Pencil
+  Pencil,
+  QrCode,
+  Printer,
+  X
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { generateSecureQRPayload } from '../utils/qrSecurity';
 
 export const AdminConsole: React.FC = () => {
   const { 
@@ -51,6 +56,7 @@ export const AdminConsole: React.FC = () => {
   const [formAgencyName, setFormAgencyName] = useState('');
   const [formAgencySlogan, setFormAgencySlogan] = useState('');
   const [editingAgencyId, setEditingAgencyId] = useState<string | null>(null);
+  const [selectedAgencyForQr, setSelectedAgencyForQr] = useState<typeof state.agencies[0] | null>(null);
 
   // Admin Authentication State
   const [username, setUsername] = useState('');
@@ -832,6 +838,14 @@ export const AdminConsole: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
+                              onClick={() => setSelectedAgencyForQr(agency)}
+                              className="p-2 rounded-lg border border-brand-orange/30 bg-brand-orange/10 text-brand-orange hover:bg-brand-orange/20 transition cursor-pointer flex items-center gap-1 text-xs font-mono font-bold"
+                              title="Gerar QR Code Oficial"
+                            >
+                              <QrCode className="w-4 h-4" />
+                              <span className="hidden sm:inline">QR Code</span>
+                            </button>
+                            <button
                               onClick={() => handleEditAgencyClick(agency)}
                               className="p-2 rounded-lg border border-brand-border/40 bg-brand-dark/50 text-slate-400 hover:text-brand-orange hover:border-brand-orange/30 transition cursor-pointer"
                               title="Editar Agência"
@@ -875,6 +889,57 @@ export const AdminConsole: React.FC = () => {
         </div>
 
       </div>
+
+      {/* QR Code Admin Modal */}
+      {selectedAgencyForQr && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-brand-surface border border-brand-border rounded-3xl p-6 max-w-sm w-full space-y-5 text-center relative shadow-2xl">
+            <button
+              onClick={() => setSelectedAgencyForQr(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono font-bold text-brand-orange uppercase tracking-wider block">
+                QR CODE OFICIAL DO ESTANDE
+              </span>
+              <h3 className="text-lg font-display font-bold text-slate-100">
+                {selectedAgencyForQr.name}
+              </h3>
+              <p className="text-xs text-slate-400 font-mono">
+                ID: {selectedAgencyForQr.id}
+              </p>
+            </div>
+
+            <div className="p-4 bg-white rounded-2xl inline-block shadow-inner mx-auto">
+              <QRCodeSVG 
+                value={generateSecureQRPayload(selectedAgencyForQr.id, selectedAgencyForQr.token)} 
+                size={180}
+                level="H"
+              />
+            </div>
+
+            <div className="p-3 bg-brand-dark border border-brand-border/60 rounded-xl space-y-1 text-left">
+              <span className="text-[10px] font-mono font-bold text-slate-300 block">
+                PROTEÇÃO ENCRIPTADA ANTIFRAUDE:
+              </span>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Este QR Code contém um token proprietário. Não abre links em câmeras comuns, forçando a leitura física pelo aplicativo ECOS Summit.
+              </p>
+            </div>
+
+            <button
+              onClick={() => window.print()}
+              className="w-full py-3 bg-brand-orange hover:bg-brand-orange-hover text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Imprimir para Imprimir/Fixar no Estande</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

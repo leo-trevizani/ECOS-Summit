@@ -6,7 +6,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion } from 'motion/react';
-import { ArrowLeft, TrendingUp, Users, RefreshCw, Key, ShieldCheck, HelpCircle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, RefreshCw, Key, ShieldCheck, HelpCircle, QrCode, Lock, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { generateSecureQRPayload } from '../utils/qrSecurity';
 
 export const AgencyDashboard: React.FC = () => {
   const { state, currentParam, navigate } = useApp();
@@ -188,6 +190,41 @@ export const AgencyDashboard: React.FC = () => {
                   <TrendingUp className="w-5 h-5" />
                   <span className="text-sm font-semibold font-mono">Alta</span>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Official Booth QR Code Section */}
+        <div className="px-6 py-2 shrink-0 z-10">
+          <div className="bg-brand-surface border border-brand-border rounded-3xl p-5 flex flex-col md:flex-row items-center gap-5 shadow-lg relative overflow-hidden">
+            <div className="p-4 bg-white rounded-2xl shrink-0 shadow-inner flex items-center justify-center">
+              <QRCodeSVG 
+                value={generateSecureQRPayload(agency.id, agency.token)} 
+                size={140}
+                level="H"
+              />
+            </div>
+            
+            <div className="flex-1 space-y-2 text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-1.5 text-brand-orange font-mono text-xs font-bold uppercase tracking-wider">
+                <Lock className="w-3.5 h-3.5 text-brand-orange" />
+                <span>QR CODE OFICIAL DO ESTANDE (ANTIFRAUDE)</span>
+              </div>
+              <h3 className="text-sm font-display font-bold text-slate-100">Exiba ou imprima para receber aportes</h3>
+              <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                Este código é encriptado para a segurança do evento. Ele <strong className="text-white font-bold">NÃO abre em câmeras comuns de celular</strong> nem gera links clicáveis da web, garantindo que o visitante deve estar presencialmente no seu estande e usando a câmera do aplicativo ECOS Summit para investir.
+              </p>
+              
+              <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-1.5 bg-brand-dark hover:bg-white/10 border border-brand-border rounded-xl text-xs font-mono text-slate-200 flex items-center gap-1.5 cursor-pointer transition"
+                >
+                  <Printer className="w-3.5 h-3.5 text-brand-orange" />
+                  <span>Imprimir QR Code</span>
+                </button>
               </div>
             </div>
           </div>

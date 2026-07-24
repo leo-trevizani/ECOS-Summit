@@ -23,6 +23,7 @@ import {
   VolumeX
 } from 'lucide-react';
 import { QrScannerComponent } from './QrScannerComponent';
+import { parseSecureQRPayload } from '../utils/qrSecurity';
 
 // Synthesized audio helper using Web Audio API to prevent static file assets loading issues
 const playSound = (type: 'click' | 'success', enabled: boolean) => {
@@ -184,33 +185,16 @@ export const WalletScreen: React.FC = () => {
   const selectedAgency = state.agencies.find(a => a.id === selectedAgencyId);
 
   const handleScanSuccess = (decodedText: string) => {
-    // Process URL formats:
-    // https://dominio.com/investir/[ID-DA-AGENCIA]
-    // http://dominio.com/investir/[ID-DA-AGENCIA]
-    // #/investir/[ID-DA-AGENCIA]
-    // plain text: [ID-DA-AGENCIA]
-    let targetId = decodedText.trim();
+    const parsed = parseSecureQRPayload(decodedText);
 
-    if (targetId.includes('/investir/')) {
-      const parts = targetId.split('/investir/');
-      if (parts.length > 1) {
-        targetId = parts[1].split(/[?#]/)[0];
-      }
-    } else if (targetId.includes('#/investir/')) {
-      const parts = targetId.split('#/investir/');
-      if (parts.length > 1) {
-        targetId = parts[1].split(/[?#]/)[0];
-      }
-    } else if (targetId.startsWith('http://') || targetId.startsWith('https://')) {
-      const parts = targetId.split('/');
-      const lastPart = parts[parts.length - 1];
-      if (lastPart) {
-        targetId = lastPart.split(/[?#]/)[0];
-      }
+    if (!parsed.isValid || !parsed.agencyId) {
+      setErrorMsg(parsed.error || 'QR Code inválido. Utilize o QR Code oficial impresso no estande da agência.');
+      return;
     }
 
-    const cleanId = targetId.toLowerCase().trim();
-    const matchedAgency = state.agencies.find(a => a.id === cleanId);
+    const matchedAgency = state.agencies.find(
+      a => a.id === parsed.agencyId && (a.token === parsed.agencyToken || !parsed.agencyToken)
+    );
 
     if (matchedAgency) {
       setSelectedAgencyId(matchedAgency.id);
@@ -218,7 +202,7 @@ export const WalletScreen: React.FC = () => {
       setErrorMsg(null);
       setInvestAmount('');
     } else {
-      setErrorMsg(`Código QR lido é inválido ou agência não cadastrada: "${cleanId}"`);
+      setErrorMsg(`Agência ou chave de segurança não cadastrada no evento.`);
     }
   };
 
