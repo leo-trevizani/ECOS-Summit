@@ -167,33 +167,10 @@ export const WalletScreen: React.FC = () => {
   }, [soundEnabled]);
 
   // Handler for initiating QR Code scan with geofence validation
-  const handleInitiateScan = async () => {
+  // Handler for initiating QR Code scan - opens camera directly
+  const handleInitiateScan = () => {
     setErrorMsg(null);
-    if (!geofenceConfig?.enabled) {
-      // Geofence is turned off by admin (testing mode)
-      setShowScanner(true);
-      return;
-    }
-
-    setIsCheckingLocation(true);
-    try {
-      const check = await checkLocationPermissionAndGeofence();
-      setIsCheckingLocation(false);
-      if (check.isAllowed) {
-        setShowScanner(true);
-      } else {
-        setGeoBlockedResult(check);
-        setShowGeoBlockedModal(true);
-      }
-    } catch (err: any) {
-      setIsCheckingLocation(false);
-      setGeoBlockedResult({
-        isAllowed: false,
-        reason: 'position_unavailable',
-        message: 'Erro ao verificar geolocalização: ' + (err.message || 'GPS indisponível'),
-      });
-      setShowGeoBlockedModal(true);
-    }
+    setShowScanner(true);
   };
 
   // Deep Link handler: If route is /investir/[id], validate geofence and auto-open investment flow
@@ -251,7 +228,9 @@ export const WalletScreen: React.FC = () => {
 
   const selectedAgency = state.agencies.find(a => a.id === selectedAgencyId);
 
-  const handleScanSuccess = (decodedText: string) => {
+  // Successfully decoded a QR code:
+  // Validate presence via fresh GPS check at this exact moment
+  const handleScanSuccess = async (decodedText: string) => {
     const parsed = parseSecureQRPayload(decodedText);
 
     if (!parsed.isValid || !parsed.agencyId) {
@@ -263,13 +242,43 @@ export const WalletScreen: React.FC = () => {
       a => a.id === parsed.agencyId && (a.token === parsed.agencyToken || !parsed.agencyToken)
     );
 
-    if (matchedAgency) {
-      setSelectedAgencyId(matchedAgency.id);
-      setShowScanner(false);
-      setErrorMsg(null);
-      setInvestAmount('');
-    } else {
+    if (!matchedAgency) {
       setErrorMsg(`Agência ou chave de segurança não cadastrada no evento.`);
+      return;
+    }
+
+    // Immediately close camera scanner
+    setShowScanner(false);
+    setErrorMsg(null);
+
+    // If geofencing is enabled, request/check location freshly on this scan
+    if (geofenceConfig?.enabled) {
+      setIsCheckingLocation(true);
+      try {
+        const check = await checkLocationPermissionAndGeofence();
+        setIsCheckingLocation(false);
+        if (check.isAllowed) {
+          // Allowed: participant verified physically at the event
+          setSelectedAgencyId(matchedAgency.id);
+          setInvestAmount('');
+        } else {
+          // Denied / refused or outside: show transparent educational modal
+          setGeoBlockedResult(check);
+          setShowGeoBlockedModal(true);
+        }
+      } catch (err: any) {
+        setIsCheckingLocation(false);
+        setGeoBlockedResult({
+          isAllowed: false,
+          reason: 'permission_denied',
+          message: 'Permissão de localização não autorizada. Para investir nas agências, é necessário conceder acesso ao GPS.',
+        });
+        setShowGeoBlockedModal(true);
+      }
+    } else {
+      // Testing mode / geofence disabled: open investment directly
+      setSelectedAgencyId(matchedAgency.id);
+      setInvestAmount('');
     }
   };
 
@@ -751,7 +760,7 @@ export const WalletScreen: React.FC = () => {
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 30, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-brand-surface border border-brand-border rounded-3xl p-6 max-w-sm w-full space-y-5 text-center relative shadow-2xl"
+              className="bg-brand-surface border border-brand-border rounded-3xl p-6 max-w-sm w-full space-y-5 text-center relative shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar"
             >
               <button
                 id="btn-close-geoblocked"
@@ -760,12 +769,13 @@ export const WalletScreen: React.FC = () => {
                   setGeoBlockedResult(null);
                 }}
                 className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
+                title="Fechar e continuar no app"
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Icon badge */}
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
                 {geoBlockedResult.reason === 'permission_denied' ? (
                   <Navigation className="w-8 h-8 text-amber-400" />
                 ) : (
@@ -776,17 +786,19 @@ export const WalletScreen: React.FC = () => {
               {/* Title & Status */}
               <div className="space-y-1.5">
                 <span className="text-[10px] font-mono font-bold tracking-widest text-amber-400 uppercase block">
-                  CONTROLE DE PRESENÇA NO EVENTO
+                  PRESENÇA PRESENCIAL OBRIGATÓRIA
                 </span>
                 <h3 className="text-xl font-display font-bold text-slate-100">
                   {geoBlockedResult.reason === 'permission_denied'
-                    ? 'Localização Não Autorizada'
+                    ? 'GPS Obrigatório para Investir'
                     : geoBlockedResult.reason === 'outside'
                     ? 'Você Está Fora do Evento'
                     : 'Acesso Restrito ao Local'}
                 </h3>
                 <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  {geoBlockedResult.message}
+                  {geoBlockedResult.reason === 'permission_denied'
+                    ? 'Sem o acesso à localização não é possível transferir seus créditos para esta agência.'
+                    : geoBlockedResult.message}
                 </p>
               </div>
 
@@ -816,37 +828,97 @@ export const WalletScreen: React.FC = () => {
                 </div>
               )}
 
-              {/* Educational anti-fraud note */}
-              <div className="p-3 bg-brand-dark/50 border border-brand-border/40 rounded-xl text-[11px] text-slate-400 text-left leading-relaxed">
-                🛡️ Para garantir a segurança e a integridade da premiação, os votos e investimentos só podem ser realizados por pessoas presentes no evento.
+              {/* Educational anti-fraud & transparency note */}
+              <div className="p-3.5 bg-brand-dark/60 border border-brand-border/60 rounded-2xl text-[11px] text-slate-300 text-left space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-brand-orange font-mono text-[10px] uppercase">
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-orange" />
+                  <span>Por que solicitamos a localização?</span>
+                </div>
+                <p className="leading-relaxed text-slate-300 text-[11px]">
+                  O <strong>Expo PP</strong> premia as agências concorrentes com base na avaliação dos visitantes presentes no pavilhão. A geolocalização valida sua presença física no estande e impede votos remotos e fraudes.
+                </p>
+                <p className="text-[10px] text-slate-400 border-t border-white/5 pt-1.5">
+                  🔒 <em>Sua posição não é rastreada continuamente nem compartilhada com terceiros. A cada nova leitura de QR Code, solicitamos a localização novamente para atualizar e confirmar sua presença no evento.</em>
+                </p>
               </div>
+
+              {/* Quick instructions if permission denied */}
+              {geoBlockedResult.reason === 'permission_denied' && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left text-[11px] text-amber-200/90 leading-relaxed">
+                  💡 <strong>Como ativar:</strong> Toque no ícone de <strong>Cadeado 🔒</strong> na barra de endereços do navegador, acesse <strong>Localização</strong> e mude para <strong>Permitir</strong>.
+                </div>
+              )}
+
+              {/* Reassurance of App Availability */}
+              <p className="text-[11px] text-slate-400 font-sans">
+                Você pode continuar navegando e manuseando o aplicativo livremente.
+              </p>
 
               {/* Action Buttons */}
               <div className="space-y-2 pt-1">
                 <button
                   id="btn-retry-geofence"
-                  onClick={async () => {
+                  onClick={() => {
                     setShowGeoBlockedModal(false);
-                    await handleInitiateScan();
+                    setGeoBlockedResult(null);
+                    handleInitiateScan();
                   }}
                   className="w-full py-3.5 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-brand-orange/20"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  <span>Verificar Localização Novamente</span>
+                  <span>Escanear QR Code Novamente</span>
                 </button>
 
                 <button
+                  id="btn-close-geoblocked"
                   onClick={() => {
                     setShowGeoBlockedModal(false);
                     setGeoBlockedResult(null);
                   }}
-                  className="w-full py-3 bg-transparent hover:bg-white/5 text-slate-400 hover:text-white font-mono text-xs rounded-xl transition cursor-pointer"
+                  className="w-full py-3 bg-transparent hover:bg-white/5 text-slate-300 hover:text-white font-mono text-xs rounded-xl transition cursor-pointer border border-brand-border/60"
                 >
-                  Fechar
+                  Continuar Navegando no App
                 </button>
+
+                <div className="pt-1 text-center">
+                  <button
+                    onClick={() => {
+                      setShowGeoBlockedModal(false);
+                      setGeoBlockedResult(null);
+                      navigate('admin');
+                    }}
+                    className="text-[10px] font-mono text-slate-400 hover:text-slate-300 underline cursor-pointer"
+                  >
+                    Acessar Console Administrativo →
+                  </button>
+                </div>
               </div>
 
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 5. LOCATION CHECKING OVERLAY UPON QR CODE READ */}
+      <AnimatePresence>
+        {isCheckingLocation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center space-y-3"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-brand-orange/10 border border-brand-orange/30 flex items-center justify-center text-brand-orange">
+              <RefreshCw className="w-7 h-7 animate-spin" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-display font-bold text-white uppercase tracking-wider">
+                Verificando Presença Presencial...
+              </h3>
+              <p className="text-xs text-slate-300 max-w-xs font-sans">
+                Confirmando localização GPS para liberar o investimento na agência.
+              </p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
