@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatCPF } from '../utils/cpf';
 import { motion } from 'motion/react';
-import { ArrowLeft, User, CreditCard, ShieldAlert, Sparkles } from 'lucide-react';
+import { ArrowLeft, User, CreditCard, ShieldAlert, Sparkles, ShieldCheck } from 'lucide-react';
 
 export const OnboardingScreen: React.FC = () => {
   const { registerVisitor, loginVisitor, navigate } = useApp();
@@ -161,11 +161,12 @@ export const OnboardingScreen: React.FC = () => {
                 required
               />
             </div>
-            <p className="text-[11px] text-white/60 leading-relaxed font-sans bg-brand-dark/70 border border-brand-border/60 p-2.5 rounded-xl">
-              <span className="font-mono font-bold text-brand-orange text-[10px] uppercase tracking-wider block mb-1">
-                🛡️ Transparência e LGPD:
+            <p className="text-[11.5px] text-slate-300 leading-relaxed font-sans bg-slate-900/90 border border-emerald-500/30 p-3.5 rounded-xl shadow-inner">
+              <span className="flex items-center gap-1.5 font-mono font-bold text-emerald-400 text-[10.5px] uppercase tracking-wider mb-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 inline" />
+                Aviso de Privacidade & LGPD (Lei nº 13.709/2018):
               </span>
-              Em conformidade com a LGPD, seu CPF é coletado exclusivamente para autenticar seu cadastro individual, garantir a integridade da premiação e impedir que alunos expositores se cadastrem no app. Seus dados estão protegidos e não serão compartilhados ou distribuídos indevidamente.
+              Em total conformidade com a LGPD, seu CPF é coletado <strong className="text-white font-semibold">exclusivamente para validar seu cadastro individual</strong> e liberar seus créditos de votação. Esse registro é indispensável para garantir a lisura da feira e <strong className="text-white font-semibold">impedir que alunos expositores se cadastrem ou votem no app</strong>. Asseguramos que seus dados pessoais <strong className="text-white font-semibold">não serão comercializados, distribuídos ou compartilhados indevidamente</strong> com terceiros ou patrocinadores.
             </p>
           </div>
 
