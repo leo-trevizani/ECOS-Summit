@@ -161,8 +161,11 @@ export const OnboardingScreen: React.FC = () => {
                 required
               />
             </div>
-            <p className="text-xs text-white/40 font-mono">
-              Seu CPF será validado matematicamente. Alunos expositores não podem ser cadastrados.
+            <p className="text-[11px] text-white/60 leading-relaxed font-sans bg-brand-dark/70 border border-brand-border/60 p-2.5 rounded-xl">
+              <span className="font-mono font-bold text-brand-orange text-[10px] uppercase tracking-wider block mb-1">
+                🛡️ Transparência e LGPD:
+              </span>
+              Em conformidade com a LGPD, seu CPF é coletado exclusivamente para autenticar seu cadastro individual, garantir a integridade da premiação e impedir que alunos expositores se cadastrem no app. Seus dados estão protegidos e não serão compartilhados ou distribuídos indevidamente.
             </p>
           </div>
 
