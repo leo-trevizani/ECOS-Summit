@@ -80,7 +80,9 @@ export const AdminConsole: React.FC = () => {
     isInside: boolean;
     lat: number;
     lng: number;
+    simulated?: boolean;
   } | null>(null);
+  const [testDistanceError, setTestDistanceError] = useState<string | null>(null);
   const [isSavingGeofence, setIsSavingGeofence] = useState(false);
 
   // Sync state whenever remote geofenceConfig updates from Firestore
@@ -298,13 +300,13 @@ export const AdminConsole: React.FC = () => {
     setSuccessMsg(null);
     setIsGettingCurrentLoc(true);
     try {
-      const pos = await getDevicePosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      const pos = await getDevicePosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       setGeoLat(lat.toFixed(6));
       setGeoLng(lng.toFixed(6));
       setIsGettingCurrentLoc(false);
-      setSuccessMsg(`Localização atual capturada: (${lat.toFixed(6)}, ${lng.toFixed(6)}). Buscando endereço...`);
+      setSuccessMsg(`Localização capturada com sucesso: (${lat.toFixed(6)}, ${lng.toFixed(6)}). Buscando endereço...`);
 
       const addr = await reverseGeocode(lat, lng);
       if (addr) {
@@ -312,28 +314,36 @@ export const AdminConsole: React.FC = () => {
       }
     } catch (err: any) {
       setIsGettingCurrentLoc(false);
-      setErrorMsg('Falha ao obter localização do GPS: ' + (err.message || 'Permissão negada ou GPS indisponível.'));
+      setErrorMsg('Falha ao obter localização: ' + (err.message || 'Permissão negada ou GPS indisponível.'));
     }
   };
 
   const handleTestDistance = async () => {
     setErrorMsg(null);
+    setTestDistanceError(null);
     setIsTestingDistance(true);
     setTestDistanceResult(null);
     try {
-      const parsedLat = parseFloat(geoLat);
-      const parsedLng = parseFloat(geoLng);
+      const cleanLatStr = String(geoLat || '').replace(',', '.').trim();
+      const cleanLngStr = String(geoLng || '').replace(',', '.').trim();
+      const parsedLat = parseFloat(cleanLatStr);
+      const parsedLng = parseFloat(cleanLngStr);
+      const radius = Number(geoRadius) || 300;
+
       if (isNaN(parsedLat) || isNaN(parsedLng)) {
         setIsTestingDistance(false);
-        setErrorMsg('Coordenadas inválidas. Verifique a latitude e longitude.');
+        const err = 'Coordenadas do evento inválidas. Preencha a latitude e longitude.';
+        setErrorMsg(err);
+        setTestDistanceError(err);
         return;
       }
 
-      const pos = await getDevicePosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      // Robust getDevicePosition with high-accuracy to network-accuracy fallback
+      const pos = await getDevicePosition();
       const currentLat = pos.coords.latitude;
       const currentLng = pos.coords.longitude;
       const dist = calculateDistanceMeters(currentLat, currentLng, parsedLat, parsedLng);
-      const isInside = dist <= geoRadius;
+      const isInside = dist <= radius;
 
       setIsTestingDistance(false);
       setTestDistanceResult({
@@ -341,11 +351,46 @@ export const AdminConsole: React.FC = () => {
         isInside,
         lat: currentLat,
         lng: currentLng,
+        simulated: false,
       });
+      setSuccessMsg(`Distância calculada: ${formatDistance(dist)} (${isInside ? 'Dentro do raio' : 'Fora do raio'}).`);
     } catch (err: any) {
       setIsTestingDistance(false);
-      setErrorMsg('Erro ao testar distância: ' + (err.message || 'Verifique as permissões de GPS.'));
+      const msg = err.message || 'Verifique se a permissão de GPS está ativa no navegador.';
+      setErrorMsg('Erro ao testar distância: ' + msg);
+      setTestDistanceError(msg);
     }
+  };
+
+  const handleSimulateDistance = (meters: number) => {
+    setTestDistanceError(null);
+    setErrorMsg(null);
+    const cleanLatStr = String(geoLat || '').replace(',', '.').trim();
+    const cleanLngStr = String(geoLng || '').replace(',', '.').trim();
+    const parsedLat = parseFloat(cleanLatStr);
+    const parsedLng = parseFloat(cleanLngStr);
+    const radius = Number(geoRadius) || 300;
+
+    if (isNaN(parsedLat) || isNaN(parsedLng)) {
+      setErrorMsg('Preencha a latitude e longitude do evento primeiro.');
+      return;
+    }
+
+    // 1 deg latitude is approx 111,320 meters
+    const latOffset = meters / 111320;
+    const simLat = parsedLat + latOffset;
+    const simLng = parsedLng;
+    const dist = calculateDistanceMeters(simLat, simLng, parsedLat, parsedLng);
+    const isInside = dist <= radius;
+
+    setTestDistanceResult({
+      distance: dist,
+      isInside,
+      lat: simLat,
+      lng: simLng,
+      simulated: true,
+    });
+    setSuccessMsg(`Simulação aplicada: ${formatDistance(dist)} (${isInside ? 'Dentro do raio' : 'Fora do raio'}).`);
   };
 
   const handleSaveGeofence = async () => {
@@ -1309,6 +1354,22 @@ export const AdminConsole: React.FC = () => {
                   )}
                 </button>
 
+                {/* Audit Error Box if GPS fails or permission denied */}
+                {testDistanceError && (
+                  <div className="p-4 rounded-xl border bg-amber-950/30 border-amber-500/40 text-amber-200 text-xs space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-amber-300">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>Diagnóstico de GPS no Dispositivo</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
+                      {testDistanceError}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      💡 Dica: Se estiver em um computador de mesa ou navegador com localização restrita, você pode testar a regra instantaneamente usando os botões de simulação abaixo.
+                    </p>
+                  </div>
+                )}
+
                 {/* Audit Result Banner */}
                 {testDistanceResult && (
                   <div className={`p-4 rounded-xl border flex items-start gap-3 transition-all ${
@@ -1321,23 +1382,54 @@ export const AdminConsole: React.FC = () => {
                     ) : (
                       <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     )}
-                    <div className="space-y-1 text-xs">
-                      <div className="font-bold flex items-center gap-2">
+                    <div className="space-y-1.5 text-xs flex-1">
+                      <div className="font-bold flex flex-wrap items-center gap-2">
                         <span>Distância: {formatDistance(testDistanceResult.distance)}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
                           testDistanceResult.isInside ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
                         }`}>
                           {testDistanceResult.isInside ? 'Dentro do Raio (Autorizado)' : 'Fora do Raio (Bloqueado)'}
                         </span>
+                        {testDistanceResult.simulated && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-500/20 text-blue-300">
+                            Simulação
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] opacity-80 font-sans">
                         {testDistanceResult.isInside
                           ? `Seu dispositivo está a ${formatDistance(testDistanceResult.distance)} do ponto central. Como o raio é de ${formatDistance(geoRadius)}, você consegue investir normalmente.`
                           : `Seu dispositivo está a ${formatDistance(testDistanceResult.distance)} do ponto central, que excede o raio configurado de ${formatDistance(geoRadius)}. Os investimentos via QR Code seriam bloqueados.`}
                       </p>
+                      <div className="text-[10px] font-mono text-slate-400 pt-1 border-t border-white/10">
+                        Coordenadas testadas: Lat {testDistanceResult.lat.toFixed(6)}, Lng {testDistanceResult.lng.toFixed(6)}
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* Quick Simulation Buttons */}
+                <div className="pt-2 border-t border-brand-border/40 space-y-1.5">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block font-bold">
+                    SIMULAÇÃO RÁPIDA (PARA TESTES EM COMPUTADOR):
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateDistance(Math.min(50, Math.round(geoRadius / 2)))}
+                      className="px-3 py-1.5 rounded-lg text-xs font-mono bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 hover:bg-emerald-900/60 transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>🎯 Simular Dentro do Evento (~{Math.min(50, Math.round(geoRadius / 2))}m)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateDistance(geoRadius + 800)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-mono bg-amber-950/40 border border-amber-800/50 text-amber-300 hover:bg-amber-900/60 transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>🚫 Simular Fora do Evento (~{geoRadius + 800}m)</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Save Button */}

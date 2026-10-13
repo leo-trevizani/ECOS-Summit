@@ -44,23 +44,88 @@ export function formatDistance(meters: number): string {
 }
 
 /**
- * Promisified wrapper for navigator.geolocation.getCurrentPosition with timeout.
+ * Checks current browser permission state for geolocation safely across all browsers.
  */
-export function getDevicePosition(
-  options: PositionOptions = {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 15000,
+export async function checkGeolocationPermission(): Promise<'granted' | 'prompt' | 'denied' | 'unsupported'> {
+  if (typeof window === 'undefined' || !navigator.geolocation) {
+    return 'unsupported';
   }
+  if (!navigator.permissions || !navigator.permissions.query) {
+    return 'prompt';
+  }
+  try {
+    const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+    return result.state;
+  } catch {
+    return 'prompt';
+  }
+}
+
+/**
+ * Promisified wrapper for navigator.geolocation.getCurrentPosition with resilient
+ * high-accuracy to network-accuracy fallback and normalized error messages.
+ */
+export async function getDevicePosition(
+  options?: PositionOptions
 ): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocalização não é suportada por este dispositivo ou navegador.'));
-      return;
+  if (typeof window === 'undefined' || !navigator.geolocation) {
+    const err = new Error('Geolocalização não é suportada por este dispositivo ou navegador.');
+    (err as any).code = 2;
+    throw err;
+  }
+
+  const queryGeo = (opts: PositionOptions): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (geoErr: GeolocationPositionError) => {
+          let msg = 'Erro ao obter localização do GPS.';
+          if (geoErr.code === 1) {
+            msg = 'Permissão de localização negada pelo navegador ou dispositivo.';
+          } else if (geoErr.code === 2) {
+            msg = 'Sinal de localização/GPS indisponível no momento.';
+          } else if (geoErr.code === 3) {
+            msg = 'Tempo limite esgotado ao buscar sinal do GPS.';
+          }
+          const err = new Error(msg);
+          (err as any).code = geoErr.code;
+          reject(err);
+        },
+        opts
+      );
+    });
+  };
+
+  // If caller specifically requested low accuracy, query directly
+  if (options && options.enableHighAccuracy === false) {
+    return await queryGeo(options);
+  }
+
+  // Attempt 1: High accuracy with a 6-second timeout
+  try {
+    return await queryGeo({
+      enableHighAccuracy: true,
+      timeout: 6000,
+      maximumAge: 20000,
+      ...options,
+    });
+  } catch (firstErr: any) {
+    // If user explicitly denied permission (code 1), do not retry — throw immediately
+    if (firstErr && firstErr.code === 1) {
+      throw firstErr;
     }
 
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
-  });
+    // Attempt 2: Fallback to network/Wi-Fi triangulation (essential for desktop/laptops and indoors)
+    try {
+      return await queryGeo({
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+    } catch (secondErr: any) {
+      throw secondErr;
+    }
+  }
 }
 
 /**

@@ -406,14 +406,6 @@ export const WalletScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Geofence indicator badge if enabled */}
-            {geofenceConfig?.enabled && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 px-3 py-2 rounded-xl mb-2">
-                <MapPin className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                <span className="truncate">Validação presencial ativa (Raio: {formatDistance(geofenceConfig.radiusMeters)})</span>
-              </div>
-            )}
-
             <div className="flex gap-3 pt-2">
               <button
                 id="btn-scan-qr"
