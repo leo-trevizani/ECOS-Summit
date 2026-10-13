@@ -1,0 +1,6 @@
+{
+  "summary": "Plano de implementação para o recurso de geolocalização e raio de alcance no Expo PP, com configuração no painel do administrador, sincronização em tempo real via Firestore e bloqueio de investimentos por QR Code fora da área do evento.",
+  "updatedAt": "2026-10-13T01:32:29.631119676Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

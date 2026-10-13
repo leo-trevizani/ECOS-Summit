@@ -114,7 +114,7 @@ export const AgencyDashboard: React.FC = () => {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-white/20 mt-auto pt-4 font-sans uppercase tracking-widest">
-          Privacidade ECOS Summit • Painéis Autônomos
+          Privacidade Expo PP • Painéis Autônomos
         </p>
       </div>
     );
@@ -213,7 +213,7 @@ export const AgencyDashboard: React.FC = () => {
               </div>
               <h3 className="text-sm font-display font-bold text-slate-100">Exiba ou imprima para receber aportes</h3>
               <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                Este código é encriptado para a segurança do evento. Ele <strong className="text-white font-bold">NÃO abre em câmeras comuns de celular</strong> nem gera links clicáveis da web, garantindo que o visitante deve estar presencialmente no seu estande e usando a câmera do aplicativo ECOS Summit para investir.
+                Este código é encriptado para a segurança do evento. Ele <strong className="text-white font-bold">NÃO abre em câmeras comuns de celular</strong> nem gera links clicáveis da web, garantindo que o visitante deve estar presencialmente no seu estande e usando a câmera do aplicativo Expo PP para investir.
               </p>
               
               <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-2">

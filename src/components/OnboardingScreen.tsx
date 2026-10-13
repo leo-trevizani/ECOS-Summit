@@ -226,7 +226,7 @@ export const OnboardingScreen: React.FC = () => {
 
       {/* Security note */}
       <p className="text-center text-xs text-white/30 mt-auto pt-4 font-sans">
-        Protegido por criptografia. Seus dados de CPF são de uso restrito ao ECOS Summit para assegurar as regras do evento acadêmico.
+        Protegido por criptografia. Seus dados de CPF são de uso restrito ao Expo PP para assegurar as regras do evento acadêmico.
       </p>
     </div>
   );

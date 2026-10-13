@@ -29,7 +29,7 @@ export const WelcomeScreen: React.FC = () => {
       <div className="flex items-center justify-between pt-4 z-10">
         <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#F27D26]/10 border border-[#F27D26]/30 rounded-full text-xs font-bold font-mono text-brand-orange uppercase tracking-wider">
           <span className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
-          ECOS Summit
+          Expo PP
         </div>
         <button 
           id="btn-admin-panel"
@@ -62,7 +62,7 @@ export const WelcomeScreen: React.FC = () => {
             transition={{ delay: 0.1, duration: 0.5 }}
             className="font-display text-5xl md:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-brand-orange"
           >
-            ECOS SUMMIT
+            EXPO PP
           </motion.h1>
           
           <motion.p

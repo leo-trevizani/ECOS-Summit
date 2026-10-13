@@ -20,10 +20,17 @@ import {
   Building2,
   Lock,
   Volume2,
-  VolumeX
+  VolumeX,
+  MapPin,
+  Navigation,
+  AlertTriangle,
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import { QrScannerComponent } from './QrScannerComponent';
 import { parseSecureQRPayload } from '../utils/qrSecurity';
+import { formatDistance } from '../utils/geolocation';
+import { LocationCheckResult } from '../types';
 
 // Synthesized audio helper using Web Audio API to prevent static file assets loading issues
 const playSound = (type: 'click' | 'success', enabled: boolean) => {
@@ -125,7 +132,16 @@ const Confetti: React.FC = () => {
 };
 
 export const WalletScreen: React.FC = () => {
-  const { state, currentPath, currentParam, navigate, investInAgency, logout } = useApp();
+  const { 
+    state, 
+    currentPath, 
+    currentParam, 
+    navigate, 
+    investInAgency, 
+    logout,
+    geofenceConfig,
+    checkLocationPermissionAndGeofence
+  } = useApp();
   const visitor = state.currentVisitor;
 
   // Modal / Simulation states
@@ -136,6 +152,11 @@ export const WalletScreen: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSuccessTx, setLastSuccessTx] = useState<{ agencyName: string; amount: number } | null>(null);
 
+  // Geolocation Geofence enforcement states
+  const [isCheckingLocation, setIsCheckingLocation] = useState(false);
+  const [geoBlockedResult, setGeoBlockedResult] = useState<LocationCheckResult | null>(null);
+  const [showGeoBlockedModal, setShowGeoBlockedModal] = useState(false);
+
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const cached = localStorage.getItem('ecos_sound_enabled');
     return cached !== 'false';
@@ -145,23 +166,69 @@ export const WalletScreen: React.FC = () => {
     localStorage.setItem('ecos_sound_enabled', String(soundEnabled));
   }, [soundEnabled]);
 
-  // Deep Link handler: If route is /investir/[id], auto-open investment flow for that agency
+  // Handler for initiating QR Code scan with geofence validation
+  const handleInitiateScan = async () => {
+    setErrorMsg(null);
+    if (!geofenceConfig?.enabled) {
+      // Geofence is turned off by admin (testing mode)
+      setShowScanner(true);
+      return;
+    }
+
+    setIsCheckingLocation(true);
+    try {
+      const check = await checkLocationPermissionAndGeofence();
+      setIsCheckingLocation(false);
+      if (check.isAllowed) {
+        setShowScanner(true);
+      } else {
+        setGeoBlockedResult(check);
+        setShowGeoBlockedModal(true);
+      }
+    } catch (err: any) {
+      setIsCheckingLocation(false);
+      setGeoBlockedResult({
+        isAllowed: false,
+        reason: 'position_unavailable',
+        message: 'Erro ao verificar geolocalização: ' + (err.message || 'GPS indisponível'),
+      });
+      setShowGeoBlockedModal(true);
+    }
+  };
+
+  // Deep Link handler: If route is /investir/[id], validate geofence and auto-open investment flow
   useEffect(() => {
     if (currentPath === 'investir' && currentParam) {
-      // Check if visitor is logged in. If not, Onboarding handles redirect, but just in case
+      // Check if visitor is logged in. If not, Onboarding handles redirect
       if (!visitor) {
         navigate('onboarding');
         return;
       }
       const agencyExists = state.agencies.some(a => a.id === currentParam);
-      if (agencyExists) {
+      if (!agencyExists) {
+        setErrorMsg('Agência inválida ou não encontrada via link.');
+        return;
+      }
+
+      if (geofenceConfig?.enabled) {
+        setIsCheckingLocation(true);
+        checkLocationPermissionAndGeofence().then((check) => {
+          setIsCheckingLocation(false);
+          if (check.isAllowed) {
+            setSelectedAgencyId(currentParam);
+            setShowScanner(false);
+          } else {
+            setGeoBlockedResult(check);
+            setShowGeoBlockedModal(true);
+            navigate('wallet');
+          }
+        });
+      } else {
         setSelectedAgencyId(currentParam);
         setShowScanner(false);
-      } else {
-        setErrorMsg('Agência inválida ou não encontrada via link.');
       }
     }
-  }, [currentPath, currentParam, visitor, state.agencies]);
+  }, [currentPath, currentParam, visitor, state.agencies, geofenceConfig]);
 
   // If there's no logged-in visitor, redirect to onboarding or welcome
   if (!visitor) {
@@ -225,6 +292,16 @@ export const WalletScreen: React.FC = () => {
 
     setIsInvesting(true);
     try {
+      if (geofenceConfig?.enabled) {
+        const check = await checkLocationPermissionAndGeofence();
+        if (!check.isAllowed) {
+          setIsInvesting(false);
+          setGeoBlockedResult(check);
+          setShowGeoBlockedModal(true);
+          return;
+        }
+      }
+
       const result = await investInAgency(selectedAgencyId, amount);
       setIsInvesting(false);
       if (result.success) {
@@ -329,14 +406,32 @@ export const WalletScreen: React.FC = () => {
               </div>
             </div>
 
+            {/* Geofence indicator badge if enabled */}
+            {geofenceConfig?.enabled && (
+              <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 px-3 py-2 rounded-xl mb-2">
+                <MapPin className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                <span className="truncate">Validação presencial ativa (Raio: {formatDistance(geofenceConfig.radiusMeters)})</span>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button
                 id="btn-scan-qr"
-                onClick={() => { setShowScanner(true); setErrorMsg(null); }}
-                className="flex-1 py-4 bg-brand-orange hover:bg-brand-orange-hover font-display font-bold text-sm uppercase tracking-widest text-white rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-orange/20 cursor-pointer active:scale-98 transition-all"
+                onClick={handleInitiateScan}
+                disabled={isCheckingLocation}
+                className="flex-1 py-4 bg-brand-orange hover:bg-brand-orange-hover font-display font-bold text-sm uppercase tracking-widest text-white rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-orange/20 cursor-pointer active:scale-98 transition-all disabled:opacity-60"
               >
-                <QrCode className="w-5 h-5" />
-                <span>Escanear QR Code</span>
+                {isCheckingLocation ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Verificando Localização...</span>
+                  </>
+                ) : (
+                  <>
+                    <QrCode className="w-5 h-5" />
+                    <span>Escanear QR Code</span>
+                  </>
+                )}
               </button>
             </div>
           </motion.div>
@@ -645,6 +740,120 @@ export const WalletScreen: React.FC = () => {
               >
                 Retornar à Carteira
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. GEOFENCE BLOCKED MODAL (PHYSICAL PRESENCE REQUIRED) */}
+      <AnimatePresence>
+        {showGeoBlockedModal && geoBlockedResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-brand-dark/95 backdrop-blur-md z-50 flex items-center justify-center p-6 text-white"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 30, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 30, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-brand-surface border border-brand-border rounded-3xl p-6 max-w-sm w-full space-y-5 text-center relative shadow-2xl"
+            >
+              <button
+                id="btn-close-geoblocked"
+                onClick={() => {
+                  setShowGeoBlockedModal(false);
+                  setGeoBlockedResult(null);
+                }}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Icon badge */}
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                {geoBlockedResult.reason === 'permission_denied' ? (
+                  <Navigation className="w-8 h-8 text-amber-400" />
+                ) : (
+                  <MapPin className="w-8 h-8 text-amber-400" />
+                )}
+              </div>
+
+              {/* Title & Status */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-mono font-bold tracking-widest text-amber-400 uppercase block">
+                  CONTROLE DE PRESENÇA NO EVENTO
+                </span>
+                <h3 className="text-xl font-display font-bold text-slate-100">
+                  {geoBlockedResult.reason === 'permission_denied'
+                    ? 'Localização Não Autorizada'
+                    : geoBlockedResult.reason === 'outside'
+                    ? 'Você Está Fora do Evento'
+                    : 'Acesso Restrito ao Local'}
+                </h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  {geoBlockedResult.message}
+                </p>
+              </div>
+
+              {/* Distance details if outside */}
+              {geoBlockedResult.distanceMeters !== undefined && (
+                <div className="p-3.5 bg-brand-dark/70 border border-brand-border rounded-2xl text-left space-y-2 text-xs font-mono">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Distância Atual:</span>
+                    <span className="text-amber-400 font-bold">
+                      {formatDistance(geoBlockedResult.distanceMeters)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Raio Autorizado:</span>
+                    <span className="text-emerald-400 font-bold">
+                      {formatDistance(geofenceConfig?.radiusMeters || 300)}
+                    </span>
+                  </div>
+                  {geofenceConfig?.address && (
+                    <div className="pt-1.5 border-t border-brand-border/60">
+                      <span className="text-[10px] text-slate-400 block font-bold">LOCAL OFICIAL:</span>
+                      <span className="text-[11px] text-slate-200 truncate block">
+                        {geofenceConfig.address}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Educational anti-fraud note */}
+              <div className="p-3 bg-brand-dark/50 border border-brand-border/40 rounded-xl text-[11px] text-slate-400 text-left leading-relaxed">
+                🛡️ Para garantir a segurança e a integridade da premiação, os votos e investimentos só podem ser realizados por pessoas presentes no evento.
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-1">
+                <button
+                  id="btn-retry-geofence"
+                  onClick={async () => {
+                    setShowGeoBlockedModal(false);
+                    await handleInitiateScan();
+                  }}
+                  className="w-full py-3.5 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-brand-orange/20"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Verificar Localização Novamente</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowGeoBlockedModal(false);
+                    setGeoBlockedResult(null);
+                  }}
+                  className="w-full py-3 bg-transparent hover:bg-white/5 text-slate-400 hover:text-white font-mono text-xs rounded-xl transition cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+
             </motion.div>
           </motion.div>
         )}

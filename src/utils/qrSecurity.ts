@@ -1,13 +1,14 @@
 /**
- * Utility for ECOS Summit Secure QR Code Generation & Validation
+ * Utility for Expo PP Secure QR Code Generation & Validation
  */
 
-export const QR_PREFIX = 'ECOS-SUMMIT-SECURE:v1:';
+export const QR_PREFIX = 'EXPO-PP-SECURE:v1:';
+export const LEGACY_QR_PREFIX = 'ECOS-SUMMIT-SECURE:v1:';
 
 /**
  * Generates the secure proprietary QR payload for an agency.
  * Standard phone camera apps will treat this as unclickable raw text,
- * preventing any link sharing or remote clicks outside the ECOS Summit app.
+ * preventing any link sharing or remote clicks outside the Expo PP app.
  */
 export function generateSecureQRPayload(agencyId: string, agencyToken: string): string {
   return `${QR_PREFIX}${agencyId.toLowerCase().trim()}:${agencyToken.trim()}`;
@@ -24,9 +25,15 @@ export function parseSecureQRPayload(scannedText: string): {
 } {
   const text = scannedText.trim();
 
-  // 1. Check if it's the proprietary secure format
-  if (text.startsWith(QR_PREFIX)) {
-    const payload = text.slice(QR_PREFIX.length);
+  // 1. Check if it's the proprietary secure format (new or legacy prefix)
+  const matchedPrefix = text.startsWith(QR_PREFIX)
+    ? QR_PREFIX
+    : text.startsWith(LEGACY_QR_PREFIX)
+    ? LEGACY_QR_PREFIX
+    : null;
+
+  if (matchedPrefix) {
+    const payload = text.slice(matchedPrefix.length);
     const parts = payload.split(':');
     if (parts.length >= 2) {
       const agencyId = parts[0].toLowerCase().trim();

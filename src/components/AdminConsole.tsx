@@ -25,10 +25,24 @@ import {
   Pencil,
   QrCode,
   Printer,
-  X
+  X,
+  MapPin,
+  Navigation,
+  Compass,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { generateSecureQRPayload } from '../utils/qrSecurity';
+import { 
+  geocodeAddress, 
+  reverseGeocode, 
+  getDevicePosition, 
+  calculateDistanceMeters, 
+  formatDistance 
+} from '../utils/geolocation';
 
 export const AdminConsole: React.FC = () => {
   const { 
@@ -41,14 +55,44 @@ export const AdminConsole: React.FC = () => {
     updateAgency,
     deleteAgency,
     resetAllData,
-    investInAgency
+    investInAgency,
+    geofenceConfig,
+    updateGeofenceConfig
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'ranking' | 'blacklist' | 'visitors' | 'award' | 'agencies'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'blacklist' | 'visitors' | 'award' | 'agencies' | 'geofence'>('ranking');
   const [newBlacklistCpf, setNewBlacklistCpf] = useState('');
   const [bulkCpfInput, setBulkCpfInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Geofencing Management State
+  const [geoEnabled, setGeoEnabled] = useState(geofenceConfig?.enabled ?? false);
+  const [geoAddress, setGeoAddress] = useState(geofenceConfig?.address ?? 'Expo PP - Centro de Eventos');
+  const [geoLat, setGeoLat] = useState(geofenceConfig?.latitude?.toString() ?? '-23.550520');
+  const [geoLng, setGeoLng] = useState(geofenceConfig?.longitude?.toString() ?? '-46.633308');
+  const [geoRadius, setGeoRadius] = useState<number>(geofenceConfig?.radiusMeters ?? 300);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isGettingCurrentLoc, setIsGettingCurrentLoc] = useState(false);
+  const [isTestingDistance, setIsTestingDistance] = useState(false);
+  const [testDistanceResult, setTestDistanceResult] = useState<{
+    distance: number;
+    isInside: boolean;
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [isSavingGeofence, setIsSavingGeofence] = useState(false);
+
+  // Sync state whenever remote geofenceConfig updates from Firestore
+  React.useEffect(() => {
+    if (geofenceConfig) {
+      setGeoEnabled(geofenceConfig.enabled);
+      setGeoAddress(geofenceConfig.address || 'Expo PP - Centro de Eventos');
+      setGeoLat(geofenceConfig.latitude?.toString() || '-23.550520');
+      setGeoLng(geofenceConfig.longitude?.toString() || '-46.633308');
+      setGeoRadius(geofenceConfig.radiusMeters || 300);
+    }
+  }, [geofenceConfig]);
 
   // Agency Management State
   const [formAgencyId, setFormAgencyId] = useState('');
@@ -118,7 +162,7 @@ export const AdminConsole: React.FC = () => {
       return;
     }
 
-    const headers = ['Nome do Visitante', 'CPF do Visitante', 'Agência Destino', 'Valor (ECOS)', 'Data e Hora'];
+    const headers = ['Nome do Visitante', 'CPF do Visitante', 'Agência Destino', 'Valor (Créditos)', 'Data e Hora'];
     const rows = state.transactions.map(tx => [
       tx.visitorName,
       formatCPF(tx.visitorCpf),
@@ -136,7 +180,7 @@ export const AdminConsole: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'ECOS_Summit_Relatorio_Transacoes.csv');
+    link.setAttribute('download', 'Expo_PP_Relatorio_Transacoes.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -221,6 +265,130 @@ export const AdminConsole: React.FC = () => {
     setSuccessMsg(null);
   };
 
+  // Geofence Handlers
+  const handleSearchAddress = async () => {
+    if (!geoAddress.trim()) {
+      setErrorMsg('Por favor, informe um endereço para localizar no mapa.');
+      return;
+    }
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsGeocoding(true);
+    try {
+      const res = await geocodeAddress(geoAddress);
+      setIsGeocoding(false);
+      if (res.success && res.latitude !== undefined && res.longitude !== undefined) {
+        setGeoLat(res.latitude.toFixed(6));
+        setGeoLng(res.longitude.toFixed(6));
+        if (res.displayName) {
+          setGeoAddress(res.displayName);
+        }
+        setSuccessMsg(`Coordenadas obtidas: Lat ${res.latitude.toFixed(6)}, Lng ${res.longitude.toFixed(6)}`);
+      } else {
+        setErrorMsg(res.error || 'Não foi possível encontrar este endereço.');
+      }
+    } catch (err: any) {
+      setIsGeocoding(false);
+      setErrorMsg('Erro ao consultar endereço: ' + err.message);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsGettingCurrentLoc(true);
+    try {
+      const pos = await getDevicePosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      setGeoLat(lat.toFixed(6));
+      setGeoLng(lng.toFixed(6));
+      setIsGettingCurrentLoc(false);
+      setSuccessMsg(`Localização atual capturada: (${lat.toFixed(6)}, ${lng.toFixed(6)}). Buscando endereço...`);
+
+      const addr = await reverseGeocode(lat, lng);
+      if (addr) {
+        setGeoAddress(addr);
+      }
+    } catch (err: any) {
+      setIsGettingCurrentLoc(false);
+      setErrorMsg('Falha ao obter localização do GPS: ' + (err.message || 'Permissão negada ou GPS indisponível.'));
+    }
+  };
+
+  const handleTestDistance = async () => {
+    setErrorMsg(null);
+    setIsTestingDistance(true);
+    setTestDistanceResult(null);
+    try {
+      const parsedLat = parseFloat(geoLat);
+      const parsedLng = parseFloat(geoLng);
+      if (isNaN(parsedLat) || isNaN(parsedLng)) {
+        setIsTestingDistance(false);
+        setErrorMsg('Coordenadas inválidas. Verifique a latitude e longitude.');
+        return;
+      }
+
+      const pos = await getDevicePosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      const currentLat = pos.coords.latitude;
+      const currentLng = pos.coords.longitude;
+      const dist = calculateDistanceMeters(currentLat, currentLng, parsedLat, parsedLng);
+      const isInside = dist <= geoRadius;
+
+      setIsTestingDistance(false);
+      setTestDistanceResult({
+        distance: dist,
+        isInside,
+        lat: currentLat,
+        lng: currentLng,
+      });
+    } catch (err: any) {
+      setIsTestingDistance(false);
+      setErrorMsg('Erro ao testar distância: ' + (err.message || 'Verifique as permissões de GPS.'));
+    }
+  };
+
+  const handleSaveGeofence = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    const parsedLat = parseFloat(geoLat);
+    const parsedLng = parseFloat(geoLng);
+    const parsedRadius = Number(geoRadius);
+
+    if (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+      setErrorMsg('Latitude inválida. Deve estar entre -90 e 90.');
+      return;
+    }
+    if (isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+      setErrorMsg('Longitude inválida. Deve estar entre -180 e 180.');
+      return;
+    }
+    if (isNaN(parsedRadius) || parsedRadius < 10) {
+      setErrorMsg('Raio inválido. O raio mínimo recomendado é de 10 metros.');
+      return;
+    }
+
+    setIsSavingGeofence(true);
+    const res = await updateGeofenceConfig({
+      enabled: geoEnabled,
+      address: geoAddress.trim() || 'Expo PP - Centro de Eventos',
+      latitude: parsedLat,
+      longitude: parsedLng,
+      radiusMeters: parsedRadius,
+    });
+    setIsSavingGeofence(false);
+
+    if (res.success) {
+      setSuccessMsg(
+        geoEnabled
+          ? `Geolocalização ATIVADA com sucesso! Raio configurado: ${formatDistance(parsedRadius)}.`
+          : 'Geolocalização DESATIVADA com sucesso (Modo de testes livre ativo).'
+      );
+    } else {
+      setErrorMsg(res.error || 'Erro ao salvar configurações de geolocalização.');
+    }
+  };
+
   // Helper to pre-populate mock data so the reviewer can see rankings in action instantly via Firebase Firestore Batch
   const handleSeedDemoData = async () => {
     setErrorMsg(null);
@@ -285,7 +453,7 @@ export const AdminConsole: React.FC = () => {
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <span className="text-[10px] font-mono text-brand-orange uppercase tracking-wider font-bold">ECOS SYSTEM SECURE</span>
+            <span className="text-[10px] font-mono text-brand-orange uppercase tracking-wider font-bold">EXPO PP SYSTEM SECURE</span>
           </div>
 
           <div className="text-center space-y-2">
@@ -293,7 +461,7 @@ export const AdminConsole: React.FC = () => {
               <Lock className="w-6 h-6 text-white" />
             </div>
             <h1 className="font-display text-xl font-bold text-slate-100">Acesso Restrito</h1>
-            <p className="text-xs text-white/50">Insira as credenciais administrativas para gerenciar o ECOS Summit.</p>
+            <p className="text-xs text-white/50">Insira as credenciais administrativas para gerenciar o Expo PP.</p>
           </div>
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
@@ -368,7 +536,7 @@ export const AdminConsole: React.FC = () => {
             <div>
               <span className="text-xs font-bold text-brand-orange flex items-center gap-1 font-mono uppercase tracking-wider">
                 <Database className="w-4 h-4 text-brand-orange" />
-                ECOS CORE CONSOLE
+                EXPO PP CORE CONSOLE
               </span>
               <h1 className="text-base font-display font-bold text-slate-100">Administrador Geral</h1>
             </div>
@@ -414,6 +582,7 @@ export const AdminConsole: React.FC = () => {
             >
               <option value="ranking">🏆 Ranking Geral</option>
               <option value="award">🎗️ Premiação Oficial</option>
+              <option value="geofence">📍 Raio & Geolocalização</option>
               <option value="blacklist">🛡️ CPFs Bloqueados</option>
               <option value="visitors">👥 Lista de Apoiadores</option>
               <option value="agencies">🏢 Gerenciar Agências</option>
@@ -536,7 +705,7 @@ export const AdminConsole: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-yellow-500/80 font-sans font-medium mt-4">
-                      Agraciada com o prestigiado <strong>Troféu Escolha do Mercado</strong> por votação soberana do público no ECOS Summit.
+                      Agraciada com o prestigiado <strong>Troféu Escolha do Mercado</strong> por votação soberana do público no Expo PP.
                     </p>
                   </div>
 
@@ -869,6 +1038,334 @@ export const AdminConsole: React.FC = () => {
             </div>
           )}
 
+          {/* TAB: GEOFENCING / RAIO & GEOLOCALIZAÇÃO */}
+          {activeTab === 'geofence' && (
+            <div className="flex-1 flex flex-col space-y-5">
+              
+              {/* Header Info */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-brand-orange" />
+                    CONFIGURAÇÃO DE GEOLOCALIZAÇÃO & PERÍMETRO
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Defina o raio geográfico para validar que os participantes estão fisicamente no evento antes de investir.
+                  </p>
+                </div>
+              </div>
+
+              {/* Master Activation Toggle Card */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                geoEnabled 
+                  ? 'bg-emerald-950/20 border-emerald-500/40 shadow-lg shadow-emerald-950/20' 
+                  : 'bg-brand-surface border-brand-border'
+              }`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${geoEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                      <span className="text-xs font-mono font-bold tracking-wider uppercase text-slate-200">
+                        STATUS DO BLOQUEIO POR GEOLOCALIZAÇÃO
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {geoEnabled ? (
+                        <span className="text-emerald-300 font-medium">
+                          <strong>ATIVADO:</strong> O aplicativo só permite investimentos via QR Code se o participante estiver dentro do raio configurado.
+                        </span>
+                      ) : (
+                        <span className="text-amber-300 font-medium">
+                          <strong>DESATIVADO (MODO TESTES):</strong> Investimentos liberados de qualquer localização física. Ideal para homologação e testes remotos.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <button
+                    id="btn-toggle-geofence"
+                    type="button"
+                    onClick={() => setGeoEnabled(!geoEnabled)}
+                    className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      geoEnabled ? 'bg-emerald-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        geoEnabled ? 'translate-x-7' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 1: Central Point & Address */}
+              <div className="bg-brand-surface border border-brand-border rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-brand-border/60 pb-3">
+                  <span className="text-xs font-mono font-bold text-brand-orange uppercase tracking-wider flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5" />
+                    1. PONTO CENTRAL DO EVENTO
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">Coordenadas de Referência</span>
+                </div>
+
+                {/* Address Search */}
+                <div className="space-y-2">
+                  <label htmlFor="geo-address-input" className="text-xs font-mono text-slate-300 font-bold block">
+                    Endereço ou Local do Evento:
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      id="geo-address-input"
+                      type="text"
+                      value={geoAddress}
+                      onChange={(e) => setGeoAddress(e.target.value)}
+                      placeholder="Ex: Pavilhão do Anhembi, Av. Olavo Fontoura, 1209 - São Paulo"
+                      className="flex-1 bg-brand-dark border border-brand-border text-slate-100 font-sans text-xs p-3 rounded-xl focus:outline-none focus:border-brand-purple-light"
+                    />
+                    <button
+                      id="btn-search-address"
+                      type="button"
+                      onClick={handleSearchAddress}
+                      disabled={isGeocoding}
+                      className="py-2.5 px-4 bg-brand-purple-light hover:bg-brand-purple text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {isGeocoding ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Buscando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="w-4 h-4" />
+                          <span>Buscar no Mapa</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Fast GPS Action */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    id="btn-use-current-gps"
+                    type="button"
+                    onClick={handleUseCurrentLocation}
+                    disabled={isGettingCurrentLoc}
+                    className="w-full py-2.5 bg-brand-dark border border-brand-border hover:border-brand-orange/40 hover:text-brand-orange text-slate-300 text-xs font-mono font-bold rounded-xl flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isGettingCurrentLoc ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-brand-orange" />
+                        <span>Capturando GPS do dispositivo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="w-4 h-4 text-brand-orange" />
+                        <span>Usar Minha Localização Atual (Estou no local agora)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Latitude & Longitude Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="space-y-1">
+                    <label htmlFor="geo-lat-input" className="text-[11px] font-mono text-slate-400 block font-bold">
+                      LATITUDE:
+                    </label>
+                    <input
+                      id="geo-lat-input"
+                      type="text"
+                      value={geoLat}
+                      onChange={(e) => setGeoLat(e.target.value)}
+                      placeholder="-23.550520"
+                      className="w-full bg-brand-dark border border-brand-border text-slate-100 font-mono text-xs p-2.5 rounded-xl focus:outline-none focus:border-brand-purple-light"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="geo-lng-input" className="text-[11px] font-mono text-slate-400 block font-bold">
+                      LONGITUDE:
+                    </label>
+                    <input
+                      id="geo-lng-input"
+                      type="text"
+                      value={geoLng}
+                      onChange={(e) => setGeoLng(e.target.value)}
+                      placeholder="-46.633308"
+                      className="w-full bg-brand-dark border border-brand-border text-slate-100 font-mono text-xs p-2.5 rounded-xl focus:outline-none focus:border-brand-purple-light"
+                    />
+                  </div>
+                </div>
+
+                {/* OpenStreetMap Quick Preview Link */}
+                {geoLat && geoLng && (
+                  <div className="pt-1 flex justify-end">
+                    <a
+                      href={`https://www.openstreetmap.org/?mlat=${geoLat}&mlon=${geoLng}#map=17/${geoLat}/${geoLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-mono text-brand-orange hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Visualizar Ponto no OpenStreetMap</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Radius Configuration */}
+              <div className="bg-brand-surface border border-brand-border rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-brand-border/60 pb-3">
+                  <span className="text-xs font-mono font-bold text-brand-orange uppercase tracking-wider flex items-center gap-1.5">
+                    <Compass className="w-3.5 h-3.5" />
+                    2. RAIO DE ALCANCE DO EVENTO
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-800/40">
+                    {formatDistance(geoRadius)}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="geo-radius-input" className="text-xs font-mono text-slate-300 font-bold block">
+                    Raio de Tolerância em Metros:
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="geo-radius-input"
+                      type="number"
+                      min="10"
+                      max="50000"
+                      step="10"
+                      value={geoRadius}
+                      onChange={(e) => setGeoRadius(Math.max(10, parseInt(e.target.value) || 10))}
+                      className="w-36 bg-brand-dark border border-brand-border text-slate-100 font-mono font-bold text-sm p-2.5 rounded-xl focus:outline-none focus:border-brand-purple-light"
+                    />
+                    <span className="text-xs text-slate-400 font-mono">metros a partir do centro</span>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block font-bold">
+                    PRESETS RÁPIDOS:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: '100m (Estande)', val: 100 },
+                      { label: '300m (Pavilhão)', val: 300 },
+                      { label: '500m (Complexo)', val: 500 },
+                      { label: '1.000m (1 km)', val: 1000 },
+                      { label: '2.500m (2.5 km)', val: 2500 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.val}
+                        type="button"
+                        onClick={() => setGeoRadius(preset.val)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono transition cursor-pointer ${
+                          geoRadius === preset.val
+                            ? 'bg-brand-orange text-white font-bold'
+                            : 'bg-brand-dark border border-brand-border text-slate-300 hover:border-brand-orange/40'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Live Distance Audit Tool for Admin */}
+              <div className="bg-brand-surface border border-brand-border rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-brand-border/60 pb-3">
+                  <span className="text-xs font-mono font-bold text-brand-orange uppercase tracking-wider flex items-center gap-1.5">
+                    <Compass className="w-3.5 h-3.5" />
+                    3. TESTE DE AUDITORIA DE DISTÂNCIA
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">Verificação Instantânea</span>
+                </div>
+
+                <p className="text-xs text-slate-300">
+                  Teste o seu próprio celular ou navegador agora para checar se ele estaria autorizado ou bloqueado pelo raio definido acima.
+                </p>
+
+                <button
+                  id="btn-test-my-distance"
+                  type="button"
+                  onClick={handleTestDistance}
+                  disabled={isTestingDistance}
+                  className="w-full py-2.5 bg-brand-dark border border-brand-border hover:border-brand-purple-light hover:text-white text-slate-200 text-xs font-mono font-bold rounded-xl flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isTestingDistance ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-brand-purple-light" />
+                      <span>Calculando distância exata...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Compass className="w-4 h-4 text-brand-purple-light" />
+                      <span>Calcular Minha Distância Atual do Evento</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Audit Result Banner */}
+                {testDistanceResult && (
+                  <div className={`p-4 rounded-xl border flex items-start gap-3 transition-all ${
+                    testDistanceResult.isInside 
+                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200' 
+                      : 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+                  }`}>
+                    {testDistanceResult.isInside ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-1 text-xs">
+                      <div className="font-bold flex items-center gap-2">
+                        <span>Distância: {formatDistance(testDistanceResult.distance)}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
+                          testDistanceResult.isInside ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                        }`}>
+                          {testDistanceResult.isInside ? 'Dentro do Raio (Autorizado)' : 'Fora do Raio (Bloqueado)'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] opacity-80 font-sans">
+                        {testDistanceResult.isInside
+                          ? `Seu dispositivo está a ${formatDistance(testDistanceResult.distance)} do ponto central. Como o raio é de ${formatDistance(geoRadius)}, você consegue investir normalmente.`
+                          : `Seu dispositivo está a ${formatDistance(testDistanceResult.distance)} do ponto central, que excede o raio configurado de ${formatDistance(geoRadius)}. Os investimentos via QR Code seriam bloqueados.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Save Button */}
+              <div className="pt-2">
+                <button
+                  id="btn-save-geofence"
+                  type="button"
+                  onClick={handleSaveGeofence}
+                  disabled={isSavingGeofence}
+                  className="w-full py-4 bg-brand-orange hover:bg-brand-orange-hover font-display font-bold text-sm uppercase tracking-wider text-white rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-orange/20 cursor-pointer transition disabled:opacity-50"
+                >
+                  {isSavingGeofence ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Salvando no Firestore...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Salvar Configurações de Geolocalização</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </div>
+          )}
+
         </div>
 
         {/* Limpar Base de Dados Button with Confirmation */}
@@ -878,7 +1375,7 @@ export const AdminConsole: React.FC = () => {
             onClick={() => {
               if (window.confirm('Confirmação Crítica: Deseja realmente Limpar toda a Base de Dados? Todos os visitantes, saldos e históricos de transações serão permanentemente deletados.')) {
                 resetAllData();
-                setSuccessMsg('Toda a base de dados do ECOS Summit foi limpa com sucesso.');
+                setSuccessMsg('Toda a base de dados do Expo PP foi limpa com sucesso.');
               }
             }}
             className="w-full py-3 bg-red-950/20 border border-red-900/40 text-red-300 hover:bg-red-950/40 font-mono text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
@@ -926,7 +1423,7 @@ export const AdminConsole: React.FC = () => {
                 PROTEÇÃO ENCRIPTADA ANTIFRAUDE:
               </span>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Este QR Code contém um token proprietário. Não abre links em câmeras comuns, forçando a leitura física pelo aplicativo ECOS Summit.
+                Este QR Code contém um token proprietário. Não abre links em câmeras comuns, forçando a leitura física pelo aplicativo Expo PP.
               </p>
             </div>
 

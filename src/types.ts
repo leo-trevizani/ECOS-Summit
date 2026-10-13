@@ -28,10 +28,29 @@ export interface Transaction {
   timestamp: string; // ISO String or Locale formatted time
 }
 
+export interface GeofenceConfig {
+  enabled: boolean;
+  address: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  updatedAt?: string;
+}
+
+export interface LocationCheckResult {
+  isAllowed: boolean;
+  distanceMeters?: number;
+  reason?: 'disabled' | 'inside' | 'outside' | 'permission_denied' | 'position_unavailable' | 'timeout' | 'not_supported';
+  message?: string;
+  currentLat?: number;
+  currentLng?: number;
+}
+
 export interface AppState {
   currentVisitor: Visitor | null;
   visitors: Visitor[];
   agencies: Agency[];
   transactions: Transaction[];
   blacklist: string[]; // List of CPFs that cannot register
+  geofenceConfig: GeofenceConfig;
 }

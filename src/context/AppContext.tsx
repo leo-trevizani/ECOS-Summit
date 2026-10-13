@@ -2,10 +2,10 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Visitor, Agency, Transaction, AppState } from '../types';
+import { Visitor, Agency, Transaction, AppState, GeofenceConfig, LocationCheckResult } from '../types';
 import { validateCPF } from '../utils/cpf';
+import { evaluateGeofence } from '../utils/geolocation';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -35,6 +35,9 @@ interface AppContextType {
   deleteAgency: (id: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   resetAllData: () => Promise<void>;
+  geofenceConfig: GeofenceConfig;
+  updateGeofenceConfig: (config: Partial<GeofenceConfig>) => Promise<{ success: boolean; error?: string }>;
+  checkLocationPermissionAndGeofence: () => Promise<LocationCheckResult>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -77,6 +80,14 @@ const DEFAULT_BLACKLIST = [
   '98765432100', // Valid CPF used for test blacklist (expositores)
   '12345678909', // Valid CPF used for test blacklist (estudante)
 ];
+
+export const DEFAULT_GEOFENCE_CONFIG: GeofenceConfig = {
+  enabled: false,
+  address: 'Expo PP - Centro de Eventos',
+  latitude: -23.550520,
+  longitude: -46.633308,
+  radiusMeters: 300,
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Parsing initial URL path for deep linking
@@ -133,6 +144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           agencies: parsed.agencies && parsed.agencies.length > 0 ? parsed.agencies : DEFAULT_AGENCIES,
           transactions: parsed.transactions || [],
           blacklist: parsed.blacklist || loadedBlacklist,
+          geofenceConfig: parsed.geofenceConfig || DEFAULT_GEOFENCE_CONFIG,
         };
       } catch (e) {
         console.error('Error parsing cached state', e);
@@ -144,6 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       agencies: DEFAULT_AGENCIES,
       transactions: [],
       blacklist: loadedBlacklist,
+      geofenceConfig: DEFAULT_GEOFENCE_CONFIG,
     };
   });
 
@@ -203,11 +216,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
     });
 
+    // Sync Geofence Config
+    const unsubscribeGeofence = onSnapshot(doc(db, 'config', 'geofence'), (docSnap) => {
+      if (docSnap.exists()) {
+        const remoteGeofence = docSnap.data() as GeofenceConfig;
+        setState(prev => ({ ...prev, geofenceConfig: remoteGeofence }));
+      } else {
+        // Initialize default geofence configuration if document doesn't exist
+        setDoc(doc(db, 'config', 'geofence'), DEFAULT_GEOFENCE_CONFIG).catch(err => {
+          console.warn('Initial geofence seeding notice:', err);
+        });
+      }
+    });
+
     return () => {
       unsubscribeAgencies();
       unsubscribeTransactions();
       unsubscribeVisitors();
       unsubscribeBlacklist();
+      unsubscribeGeofence();
     };
   }, []);
 
@@ -398,7 +425,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Validação de saldo
       if (visitorData.balance < amount) {
-        return { success: false, error: `Saldo insuficiente. Seu saldo atual é de ${visitorData.balance} ECOS.` };
+        return { success: false, error: `Saldo insuficiente. Seu saldo atual é de ${visitorData.balance} créditos.` };
       }
 
       // Find agency
@@ -648,6 +675,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Update Geofence Configuration in Firestore
+  const updateGeofenceConfig = async (newConfig: Partial<GeofenceConfig>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const merged: GeofenceConfig = {
+        ...state.geofenceConfig,
+        ...newConfig,
+        updatedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'config', 'geofence'), merged, { merge: true });
+      setState(prev => ({ ...prev, geofenceConfig: merged }));
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error updating geofence config:', err);
+      return { success: false, error: err.message || 'Erro ao salvar configuração' };
+    }
+  };
+
+  // Check current user location against geofence configuration
+  const checkLocationPermissionAndGeofence = async (): Promise<LocationCheckResult> => {
+    return await evaluateGeofence(state.geofenceConfig);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -666,6 +715,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteAgency,
         logout,
         resetAllData,
+        geofenceConfig: state.geofenceConfig,
+        updateGeofenceConfig,
+        checkLocationPermissionAndGeofence,
       }}
     >
       {children}
