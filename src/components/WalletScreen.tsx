@@ -288,9 +288,9 @@ export const WalletScreen: React.FC = () => {
     e.preventDefault();
     setErrorMsg(null);
 
-    const amount = parseInt(investAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setErrorMsg('Por favor, informe uma quantia inteira e maior que zero.');
+    const amount = parseInt(investAmount, 10);
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 1000) {
+      setErrorMsg('Por favor, informe uma quantia inteira entre 1 e 1.000 créditos.');
       return;
     }
 

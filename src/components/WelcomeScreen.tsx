@@ -6,7 +6,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { motion } from 'motion/react';
-import { Rocket, ShieldAlert, Award, ArrowRight, Sparkles, HelpCircle } from 'lucide-react';
+import { Rocket, ShieldAlert, Award, ArrowRight, Sparkles } from 'lucide-react';
 
 export const WelcomeScreen: React.FC = () => {
   const { state, navigate } = useApp();
@@ -32,14 +32,6 @@ export const WelcomeScreen: React.FC = () => {
           Expo PP
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            id="btn-how-it-works-header"
-            onClick={() => navigate('gamificacao')}
-            className="text-xs font-mono text-slate-300 hover:text-white transition px-3 py-1.5 hover:bg-white/5 rounded-lg border border-brand-border/40 hover:border-brand-border cursor-pointer flex items-center gap-1.5"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-brand-orange" />
-            <span>Como Funciona</span>
-          </button>
           <button 
             id="btn-admin-panel"
             onClick={() => navigate('admin')}
@@ -153,14 +145,6 @@ export const WelcomeScreen: React.FC = () => {
           <span>{state.currentVisitor ? 'Acessar Carteira' : 'Investir Agora'}</span>
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </motion.button>
-
-        <button
-          onClick={() => navigate('gamificacao')}
-          className="mt-2.5 text-xs font-sans text-slate-400 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
-        >
-          <HelpCircle className="w-3.5 h-3.5 text-brand-orange" />
-          <span>Dúvidas? Veja as regras e passo a passo</span>
-        </button>
       </div>
     </div>
   );

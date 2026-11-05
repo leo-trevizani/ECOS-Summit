@@ -3,23 +3,43 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion } from 'motion/react';
 import { ArrowLeft, TrendingUp, Users, RefreshCw, Key, ShieldCheck, HelpCircle, QrCode, Lock, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { generateSecureQRPayload } from '../utils/qrSecurity';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Transaction } from '../types';
 
 export const AgencyDashboard: React.FC = () => {
   const { state, currentParam, navigate } = useApp();
   const [tokenInput, setTokenInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [agencyTxList, setAgencyTxList] = useState<Transaction[]>([]);
 
   // Parse token from currentParam
   const tokenToUse = currentParam || '';
   
   // Find agency with this unique token
   const agency = state.agencies.find(a => a.token === tokenToUse);
+
+  // Scoped real-time listener for this agency's transactions only
+  useEffect(() => {
+    if (!agency?.id) return;
+    const qAgencyTx = query(
+      collection(db, 'transactions'),
+      where('agencyId', '==', agency.id)
+    );
+    const unsub = onSnapshot(qAgencyTx, (snapshot) => {
+      const txs: Transaction[] = [];
+      snapshot.forEach(d => txs.push(d.data() as Transaction));
+      txs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setAgencyTxList(txs);
+    });
+    return () => unsub();
+  }, [agency?.id]);
 
   const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,22 +114,6 @@ export const AgencyDashboard: React.FC = () => {
               Acessar Painel Seguro
             </button>
           </form>
-
-          {/* Quick simulation helper for presentation */}
-          <div className="p-4 bg-brand-surface border border-brand-border rounded-2xl space-y-3">
-            <span className="text-[9px] font-bold text-white/40 block text-center font-mono uppercase tracking-wider">TOKENS ATIVOS DE EXPOSITORES</span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {state.agencies.map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => navigate(`agencia/${a.token}`)}
-                  className="p-2 text-[9px] font-mono text-slate-300 bg-brand-dark border border-brand-border rounded-lg hover:border-[#7C3AED] text-center truncate cursor-pointer"
-                >
-                  {a.name}: {a.token}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
@@ -119,9 +123,6 @@ export const AgencyDashboard: React.FC = () => {
       </div>
     );
   }
-
-  // Find all transactions targeting this agency
-  const agencyTxList = state.transactions.filter(tx => tx.agencyId === agency.id);
 
   return (
     <div className="flex flex-col min-h-full flex-1 w-full bg-brand-dark text-white relative pb-8 overflow-hidden">

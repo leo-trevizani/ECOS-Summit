@@ -8,6 +8,7 @@ export interface Visitor {
   cpf: string;
   balance: number;
   registeredAt: string;
+  passwordHash?: string;
 }
 
 export interface Agency {

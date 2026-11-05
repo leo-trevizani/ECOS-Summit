@@ -7,13 +7,14 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatCPF } from '../utils/cpf';
 import { motion } from 'motion/react';
-import { ArrowLeft, User, CreditCard, ShieldAlert, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, User, CreditCard, ShieldAlert, Sparkles, ShieldCheck, Lock } from 'lucide-react';
 
 export const OnboardingScreen: React.FC = () => {
   const { registerVisitor, loginVisitor, navigate } = useApp();
   const [isLogin, setIsLogin] = useState(false);
   const [name, setName] = useState('');
   const [cpf, setCpf] = useState('');
+  const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,6 +40,12 @@ export const OnboardingScreen: React.FC = () => {
       return;
     }
 
+    const cleanPin = pin.trim();
+    if (!/^\d{4,6}$/.test(cleanPin)) {
+      setError('Por favor, informe uma senha/PIN numérico de 4 a 6 dígitos.');
+      return;
+    }
+
     setIsLoading(true);
 
     // Run action after a brief visual loading state for high-end fintech feel
@@ -46,9 +53,9 @@ export const OnboardingScreen: React.FC = () => {
       try {
         let result;
         if (isLogin) {
-          result = await loginVisitor(cpf);
+          result = await loginVisitor(cpf, cleanPin);
         } else {
-          result = await registerVisitor(name, cpf);
+          result = await registerVisitor(name, cpf, cleanPin);
         }
         setIsLoading(false);
         
@@ -167,6 +174,41 @@ export const OnboardingScreen: React.FC = () => {
                 Aviso de Privacidade & LGPD (Lei nº 13.709/2018):
               </span>
               Em total conformidade com a LGPD, seu CPF é coletado <strong className="text-white font-semibold">exclusivamente para validar seu cadastro individual</strong> e liberar seus créditos de votação. Esse registro é indispensável para garantir a lisura da feira e <strong className="text-white font-semibold">impedir que alunos expositores se cadastrem ou votem no app</strong>. Asseguramos que seus dados pessoais <strong className="text-white font-semibold">não serão comercializados, distribuídos ou compartilhados indevidamente</strong> com terceiros ou patrocinadores.
+            </p>
+          </div>
+
+          {/* PIN / Senha de Acesso (Anti-IDOR Protection) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-white/60 font-mono tracking-widest">
+                {isLogin ? 'SENHA / PIN DE ACESSO' : 'CRIE SUA SENHA / PIN (4 A 6 DÍGITOS)'}
+              </label>
+              <span className="text-[10px] font-mono text-emerald-400">Proteção Anti-Fraude</span>
+            </div>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-white/40">
+                <Lock className="w-5 h-5" />
+              </span>
+              <input
+                id="input-pin"
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="Ex: 1234"
+                value={pin}
+                onChange={(e) => {
+                  setError(null);
+                  setPin(e.target.value.replace(/\D/g, ''));
+                }}
+                className="w-full pl-11 pr-4 py-3.5 bg-brand-dark border border-brand-border rounded-xl font-mono text-base tracking-widest text-white placeholder-white/20 focus:outline-none focus:border-brand-purple-light focus:ring-1 focus:ring-brand-purple-light transition-all"
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <p className="text-[11px] text-white/50">
+              {isLogin 
+                ? 'Informe o PIN numérico definido no seu primeiro cadastro para acessar sua carteira.' 
+                : 'Esta senha impede que terceiros usem seu CPF para gastar seus créditos.'}
             </p>
           </div>
 

@@ -16,16 +16,19 @@ import {
   onSnapshot, 
   writeBatch, 
   runTransaction,
-  deleteDoc 
+  deleteDoc,
+  query,
+  where
 } from 'firebase/firestore';
+import { hashPassword, verifyPassword, sanitizeInput, chunkArray } from '../utils/security';
 
 interface AppContextType {
   state: AppState;
   currentPath: string;
   currentParam: string | null;
   navigate: (path: string) => void;
-  registerVisitor: (name: string, cpf: string) => Promise<{ success: boolean; error?: string }>;
-  loginVisitor: (cpf: string) => Promise<{ success: boolean; error?: string }>;
+  registerVisitor: (name: string, cpf: string, pin: string) => Promise<{ success: boolean; error?: string }>;
+  loginVisitor: (cpf: string, pin: string) => Promise<{ success: boolean; error?: string }>;
   investInAgency: (agencyId: string, amount: number) => Promise<{ success: boolean; error?: string }>;
   addCpfToBlacklist: (cpf: string) => Promise<{ success: boolean; error?: string }>;
   removeCpfFromBlacklist: (cpf: string) => Promise<void>;
@@ -35,6 +38,7 @@ interface AppContextType {
   deleteAgency: (id: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   resetAllData: () => Promise<void>;
+  fetchAdminData: () => Promise<void>;
   geofenceConfig: GeofenceConfig;
   updateGeofenceConfig: (config: Partial<GeofenceConfig>) => Promise<{ success: boolean; error?: string }>;
   checkLocationPermissionAndGeofence: () => Promise<LocationCheckResult>;
@@ -166,9 +170,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('blockedCPFs', JSON.stringify(state.blacklist));
   }, [state]);
 
-  // 1. Real-time Listeners for Firestore Collections
+  // 1. Real-time Listeners for Public Collections (Agencies and Geofence)
   useEffect(() => {
-    // Sync agencies
+    // Sync agencies (public leaderboard)
     const unsubscribeAgencies = onSnapshot(collection(db, 'agencies'), (snapshot) => {
       if (snapshot.empty) {
         // Seed DEFAULT_AGENCIES to Firestore
@@ -177,52 +181,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       } else {
         const loadedAgencies: Agency[] = [];
-        snapshot.forEach((doc) => {
-          loadedAgencies.push(doc.data() as Agency);
+        snapshot.forEach((docSnap) => {
+          loadedAgencies.push(docSnap.data() as Agency);
         });
         setState(prev => ({ ...prev, agencies: loadedAgencies }));
       }
     });
 
-    // Sync transactions
-    const unsubscribeTransactions = onSnapshot(collection(db, 'transactions'), (snapshot) => {
-      const loadedTransactions: Transaction[] = [];
-      snapshot.forEach((doc) => {
-        loadedTransactions.push(doc.data() as Transaction);
-      });
-      // Sort by timestamp desc
-      loadedTransactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setState(prev => ({ ...prev, transactions: loadedTransactions }));
-    });
-
-    // Sync visitors
-    const unsubscribeVisitors = onSnapshot(collection(db, 'visitors'), (snapshot) => {
-      const loadedVisitors: Visitor[] = [];
-      snapshot.forEach((doc) => {
-        loadedVisitors.push(doc.data() as Visitor);
-      });
-      setState(prev => ({ ...prev, visitors: loadedVisitors }));
-    });
-
-    // Sync blacklist
-    const unsubscribeBlacklist = onSnapshot(collection(db, 'blacklist'), (snapshot) => {
-      const loadedBlacklist: string[] = [];
-      snapshot.forEach((doc) => {
-        loadedBlacklist.push(doc.id);
-      });
-      setState(prev => ({ 
-        ...prev, 
-        blacklist: loadedBlacklist.length > 0 ? loadedBlacklist : DEFAULT_BLACKLIST 
-      }));
-    });
-
-    // Sync Geofence Config
+    // Sync Geofence Config (public)
     const unsubscribeGeofence = onSnapshot(doc(db, 'config', 'geofence'), (docSnap) => {
       if (docSnap.exists()) {
         const remoteGeofence = docSnap.data() as GeofenceConfig;
         setState(prev => ({ ...prev, geofenceConfig: remoteGeofence }));
       } else {
-        // Initialize default geofence configuration if document doesn't exist
         setDoc(doc(db, 'config', 'geofence'), DEFAULT_GEOFENCE_CONFIG).catch(err => {
           console.warn('Initial geofence seeding notice:', err);
         });
@@ -231,36 +202,75 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => {
       unsubscribeAgencies();
-      unsubscribeTransactions();
-      unsubscribeVisitors();
-      unsubscribeBlacklist();
       unsubscribeGeofence();
     };
   }, []);
 
-  // 2. Sync logged-in currentVisitor's balance & details in real-time
+  // 2. Scoped Real-time Listeners for the Authenticated Visitor (Protects against IDOR and Data Leaks)
   const loggedCpf = state.currentVisitor?.cpf || localStorage.getItem('ecos_current_visitor_cpf');
   useEffect(() => {
     if (!loggedCpf) return;
-    
+
+    // Listen ONLY to current visitor's own profile
     const unsubscribeVisitor = onSnapshot(doc(db, 'visitors', loggedCpf), (docSnap) => {
       if (docSnap.exists()) {
         const updatedVisitor = docSnap.data() as Visitor;
-        setState(prev => {
-          if (JSON.stringify(prev.currentVisitor) !== JSON.stringify(updatedVisitor)) {
-            return { ...prev, currentVisitor: updatedVisitor };
-          }
-          return prev;
-        });
+        setState(prev => ({ ...prev, currentVisitor: updatedVisitor }));
       } else {
-        // If the visitor was deleted or doesn't exist, log them out
         setState(prev => ({ ...prev, currentVisitor: null }));
         localStorage.removeItem('ecos_current_visitor_cpf');
       }
     });
 
-    return () => unsubscribeVisitor();
+    // Listen ONLY to current visitor's own transactions
+    const qOwnTransactions = query(
+      collection(db, 'transactions'),
+      where('visitorCpf', '==', loggedCpf)
+    );
+    const unsubscribeTransactions = onSnapshot(qOwnTransactions, (snapshot) => {
+      const loadedTransactions: Transaction[] = [];
+      snapshot.forEach((docSnap) => {
+        loadedTransactions.push(docSnap.data() as Transaction);
+      });
+      loadedTransactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setState(prev => ({ ...prev, transactions: loadedTransactions }));
+    });
+
+    return () => {
+      unsubscribeVisitor();
+      unsubscribeTransactions();
+    };
   }, [loggedCpf]);
+
+  // 3. Admin-only data loader (fetches full list only when requested by authenticated admin)
+  const fetchAdminData = async () => {
+    try {
+      const [vSnap, tSnap, bSnap] = await Promise.all([
+        getDocs(collection(db, 'visitors')),
+        getDocs(collection(db, 'transactions')),
+        getDocs(collection(db, 'blacklist'))
+      ]);
+
+      const loadedVisitors: Visitor[] = [];
+      vSnap.forEach(d => loadedVisitors.push(d.data() as Visitor));
+
+      const loadedTx: Transaction[] = [];
+      tSnap.forEach(d => loadedTx.push(d.data() as Transaction));
+      loadedTx.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      const loadedBlacklist: string[] = [];
+      bSnap.forEach(d => loadedBlacklist.push(d.id));
+
+      setState(prev => ({
+        ...prev,
+        visitors: loadedVisitors,
+        transactions: loadedTx,
+        blacklist: loadedBlacklist.length > 0 ? loadedBlacklist : prev.blacklist,
+      }));
+    } catch (err) {
+      console.error('Error fetching admin data:', err);
+    }
+  };
 
   // Sync URL changes with browser routing
   useEffect(() => {
@@ -292,39 +302,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentParam(parts[1] || null);
   };
 
-  // F01: Register a Visitor with Nome and CPF in Firestore
-  const registerVisitor = async (name: string, cpf: string): Promise<{ success: boolean; error?: string }> => {
+  // F01: Register a Visitor with Nome, CPF and PIN in Firestore (Anti-IDOR and Anti-Fraud)
+  const registerVisitor = async (name: string, cpf: string, pin: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanName = sanitizeInput(name, 100);
     const cleanCpf = cpf.replace(/\D/g, '');
+    const cleanPin = pin.trim();
+
+    if (!cleanName) {
+      return { success: false, error: 'Por favor, informe seu nome completo.' };
+    }
 
     // 1. Validate CPF Mathematically
-    if (!validateCPF(cleanCpf)) {
+    if (!validateCPF(cleanCpf) || cleanCpf.length !== 11) {
       return { success: false, error: 'O CPF informado não é válido. Verifique os dígitos.' };
     }
 
-    // 2. Blacklist Check
+    // 2. Validate PIN (4 to 6 numeric digits)
+    if (!/^\d{4,6}$/.test(cleanPin)) {
+      return { success: false, error: 'Por favor, crie uma senha/PIN numérico de 4 a 6 dígitos para proteger sua carteira.' };
+    }
+
+    // 3. Blacklist Check
     if (state.blacklist.includes(cleanCpf)) {
       return { 
         success: false, 
-        error: 'Esse CPF está na lista de bloqueio do evento. Favor informar outro CPF' 
+        error: 'Esse CPF está na lista de bloqueio do evento. Favor procurar a organização.' 
       };
     }
 
     try {
-      // 3. Duplicity Check in Firestore
+      // 4. Duplicity Check in Firestore
       const visitorDocRef = doc(db, 'visitors', cleanCpf);
       const visitorDoc = await getDoc(visitorDocRef);
       if (visitorDoc.exists()) {
         return { 
           success: false, 
-          error: 'Esse CPF já foi cadastrado no sistema. Por favor, faça login.' 
+          error: 'Esse CPF já foi cadastrado no sistema. Por favor, faça login com sua senha.' 
         };
       }
 
-      // 4. Register and Credit 1000 ECOS
+      // 5. Generate secure password hash
+      const passwordHash = await hashPassword(cleanPin);
+
+      // 6. Register and Credit 1000 ECOS
       const newVisitor: Visitor = {
-        name: name.trim(),
+        name: cleanName,
         cpf: cleanCpf,
         balance: 1000, // Automatic Initial Credit: 1,000 ECOS
+        passwordHash,
         registeredAt: new Date().toISOString(),
       };
 
@@ -352,13 +377,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // F01b: Login a Visitor with CPF
-  const loginVisitor = async (cpf: string): Promise<{ success: boolean; error?: string }> => {
+  // F01b: Login a Visitor with CPF and PIN (Anti-IDOR Protection)
+  const loginVisitor = async (cpf: string, pin: string): Promise<{ success: boolean; error?: string }> => {
     const cleanCpf = cpf.replace(/\D/g, '');
+    const cleanPin = pin.trim();
 
     // Validate CPF Mathematically
-    if (!validateCPF(cleanCpf)) {
+    if (!validateCPF(cleanCpf) || cleanCpf.length !== 11) {
       return { success: false, error: 'O CPF informado não é válido. Verifique os dígitos.' };
+    }
+
+    if (!cleanPin) {
+      return { success: false, error: 'Por favor, informe sua senha/PIN de acesso.' };
     }
 
     // Blacklist Check
@@ -381,6 +411,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const visitorData = visitorDoc.data() as Visitor;
+
+      // Verify Password/PIN
+      if (visitorData.passwordHash) {
+        const isMatch = await verifyPassword(cleanPin, visitorData.passwordHash);
+        if (!isMatch) {
+          return { success: false, error: 'Senha/PIN incorreto. Verifique os dígitos informados.' };
+        }
+      } else {
+        // First login for legacy record: register this PIN as their new password
+        const passwordHash = await hashPassword(cleanPin);
+        await setDoc(visitorDocRef, { passwordHash }, { merge: true });
+        visitorData.passwordHash = passwordHash;
+      }
 
       setState(prev => ({
         ...prev,
@@ -410,9 +453,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, error: 'Sessão inválida. Faça login novamente.' };
     }
 
-    if (isNaN(amount) || amount <= 0) {
-      return { success: false, error: 'Por favor, insira um valor válido de créditos.' };
+    // Defensive input check: must be positive integer up to 1000
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 1000) {
+      return { success: false, error: 'Por favor, insira uma quantidade inteira válida de créditos (entre 1 e 1.000).' };
     }
+
+    const cleanAgencyId = sanitizeInput(agencyId, 64);
 
     try {
       const visitorDocRef = doc(db, 'visitors', state.currentVisitor.cpf);
@@ -429,7 +475,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Find agency
-      const agencyDocRef = doc(db, 'agencies', agencyId);
+      const agencyDocRef = doc(db, 'agencies', cleanAgencyId);
       const agencyDoc = await getDoc(agencyDocRef);
       if (!agencyDoc.exists()) {
         return { success: false, error: 'Agência não encontrada.' };
@@ -437,7 +483,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const agencyData = agencyDoc.data() as Agency;
 
       // Create a unique transaction ID
-      const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 7)}`;
       const newTx: Transaction = {
         id: transactionId,
         visitorCpf: visitorData.cpf,
@@ -510,7 +556,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Bulk import CPFs into blacklist
+  // Bulk import CPFs into blacklist with batch chunking (<= 400 per writeBatch)
   const importCpfListToBlacklist = async (cpfs: string[]): Promise<{ success: boolean; importedCount: number }> => {
     const cleanCpfs = cpfs
       .map(c => c.replace(/\D/g, ''))
@@ -521,12 +567,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      const batch = writeBatch(db);
-      cleanCpfs.forEach((cpf) => {
-        const docRef = doc(db, 'blacklist', cpf);
-        batch.set(docRef, { cpf, blockedAt: new Date().toISOString() });
-      });
-      await batch.commit();
+      // Chunk CPFs into batches of 400 to strictly respect Firestore's 500-operation writeBatch limit
+      const batches = chunkArray(cleanCpfs, 400);
+      for (const chunk of batches) {
+        const batch = writeBatch(db);
+        chunk.forEach((cpf) => {
+          const docRef = doc(db, 'blacklist', cpf);
+          batch.set(docRef, { cpf, blockedAt: new Date().toISOString() });
+        });
+        await batch.commit();
+      }
       return { success: true, importedCount: cleanCpfs.length };
     } catch (err) {
       console.error('Error in bulk import:', err);
@@ -534,12 +584,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Create a new agency in Firestore
+  // Create a new agency in Firestore with strict input sanitization
   const createAgency = async (id: string, token: string, name: string, slogan: string): Promise<{ success: boolean; error?: string }> => {
-    const cleanId = id.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    const cleanToken = token.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanId = sanitizeInput(id, 64).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanToken = sanitizeInput(token, 64).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanName = sanitizeInput(name, 100);
+    const cleanSlogan = sanitizeInput(slogan, 150);
 
-    if (!cleanId || !cleanToken || !name.trim()) {
+    if (!cleanId || !cleanToken || !cleanName) {
       return { success: false, error: 'Por favor, preencha todos os campos corretamente.' };
     }
 
@@ -554,8 +606,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newAgency: Agency = {
         id: cleanId,
         token: cleanToken,
-        name: name.trim(),
-        slogan: slogan.trim(),
+        name: cleanName,
+        slogan: cleanSlogan,
         balance: 0,
       };
 
@@ -567,14 +619,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Update an existing agency in Firestore
+  // Update an existing agency in Firestore with strict input sanitization
   const updateAgency = async (id: string, token: string, name: string, slogan: string): Promise<{ success: boolean; error?: string }> => {
-    if (!id.trim() || !token.trim() || !name.trim()) {
+    const cleanId = sanitizeInput(id, 64).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanToken = sanitizeInput(token, 64).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanName = sanitizeInput(name, 100);
+    const cleanSlogan = sanitizeInput(slogan, 150);
+
+    if (!cleanId || !cleanToken || !cleanName) {
       return { success: false, error: 'Por favor, preencha todos os campos corretamente.' };
     }
 
     try {
-      const agencyDocRef = doc(db, 'agencies', id);
+      const agencyDocRef = doc(db, 'agencies', cleanId);
       const agencyDoc = await getDoc(agencyDocRef);
       if (!agencyDoc.exists()) {
         return { success: false, error: 'Agência não encontrada para atualização.' };
@@ -583,9 +640,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const currentData = agencyDoc.data() as Agency;
       const updatedAgency: Agency = {
         ...currentData,
-        token: token.trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-        name: name.trim(),
-        slogan: slogan.trim(),
+        token: cleanToken,
+        name: cleanName,
+        slogan: cleanSlogan,
       };
 
       await setDoc(agencyDocRef, updatedAgency);
@@ -715,6 +772,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteAgency,
         logout,
         resetAllData,
+        fetchAdminData,
         geofenceConfig: state.geofenceConfig,
         updateGeofenceConfig,
         checkLocationPermissionAndGeofence,

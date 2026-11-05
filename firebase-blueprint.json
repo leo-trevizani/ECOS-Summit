@@ -1,0 +1,163 @@
+{
+  "entities": {
+    "Visitor": {
+      "title": "Visitor",
+      "description": "Participante cadastrado no evento Expo PP",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome completo do participante",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "cpf": {
+          "type": "string",
+          "description": "CPF de 11 dígitos numéricos",
+          "pattern": "^[0-9]{11}$"
+        },
+        "balance": {
+          "type": "number",
+          "description": "Saldo atual de créditos ECOS"
+        },
+        "passwordHash": {
+          "type": "string",
+          "description": "Hash seguro da senha/PIN de 4 a 6 dígitos",
+          "maxLength": 128
+        },
+        "registeredAt": {
+          "type": "string",
+          "description": "Data e hora de registro"
+        }
+      },
+      "required": ["name", "cpf", "balance", "registeredAt"]
+    },
+    "Agency": {
+      "title": "Agency",
+      "description": "Agência estudantil expositora no evento",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID único da agência",
+          "maxLength": 64
+        },
+        "token": {
+          "type": "string",
+          "description": "Token secreto de segurança do expositor",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome da agência",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "slogan": {
+          "type": "string",
+          "description": "Slogan de apresentação da agência",
+          "maxLength": 150
+        },
+        "balance": {
+          "type": "number",
+          "description": "Total de créditos recebidos"
+        }
+      },
+      "required": ["id", "token", "name", "balance"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Registro de investimento de créditos",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identificador da transação",
+          "maxLength": 128
+        },
+        "visitorCpf": {
+          "type": "string",
+          "description": "CPF do visitante investidor",
+          "pattern": "^[0-9]{11}$"
+        },
+        "visitorName": {
+          "type": "string",
+          "description": "Nome do visitante investidor",
+          "maxLength": 100
+        },
+        "agencyId": {
+          "type": "string",
+          "description": "ID da agência investida",
+          "maxLength": 64
+        },
+        "agencyName": {
+          "type": "string",
+          "description": "Nome da agência investida",
+          "maxLength": 100
+        },
+        "amount": {
+          "type": "number",
+          "description": "Quantidade inteira de créditos investidos"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Data e hora da transação"
+        }
+      },
+      "required": ["id", "visitorCpf", "visitorName", "agencyId", "agencyName", "amount", "timestamp"]
+    },
+    "BlacklistItem": {
+      "title": "BlacklistItem",
+      "description": "CPF bloqueado de participar da votação",
+      "type": "object",
+      "properties": {
+        "cpf": {
+          "type": "string",
+          "description": "CPF com 11 dígitos",
+          "pattern": "^[0-9]{11}$"
+        },
+        "blockedAt": {
+          "type": "string",
+          "description": "Data de inserção no bloqueio"
+        }
+      },
+      "required": ["cpf", "blockedAt"]
+    },
+    "GeofenceConfig": {
+      "title": "GeofenceConfig",
+      "description": "Configuração da cerca geográfica do evento",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "address": { "type": "string", "maxLength": 200 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "radiusMeters": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["enabled", "latitude", "longitude", "radiusMeters"]
+    }
+  },
+  "firestore": {
+    "/visitors/{cpf}": {
+      "schema": { "$ref": "#/entities/Visitor" },
+      "description": "Documentos privados de participantes indexados por CPF"
+    },
+    "/agencies/{agencyId}": {
+      "schema": { "$ref": "#/entities/Agency" },
+      "description": "Agências acadêmicas do evento"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Histórico auditável de aportes e investimentos"
+    },
+    "/blacklist/{cpf}": {
+      "schema": { "$ref": "#/entities/BlacklistItem" },
+      "description": "Lista de bloqueio de alunos expositores"
+    },
+    "/config/{configId}": {
+      "schema": { "$ref": "#/entities/GeofenceConfig" },
+      "description": "Configurações globais do sistema"
+    }
+  }
+}
