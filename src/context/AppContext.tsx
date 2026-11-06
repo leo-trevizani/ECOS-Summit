@@ -21,6 +21,14 @@ import {
   where
 } from 'firebase/firestore';
 import { hashPassword, verifyPassword, sanitizeInput, chunkArray } from '../utils/security';
+import { 
+  getDeviceId, 
+  getDeviceFingerprint, 
+  getDeviceRegisteredCpf, 
+  setDeviceRegisteredCpf, 
+  clearDeviceRegistration, 
+  maskCpf 
+} from '../utils/device';
 
 interface AppContextType {
   state: AppState;
@@ -42,6 +50,7 @@ interface AppContextType {
   geofenceConfig: GeofenceConfig;
   updateGeofenceConfig: (config: Partial<GeofenceConfig>) => Promise<{ success: boolean; error?: string }>;
   checkLocationPermissionAndGeofence: () => Promise<LocationCheckResult>;
+  clearDeviceLock: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -330,30 +339,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    // 4. Device Lock Check (Regra: Apenas 1 cadastro por dispositivo físico)
+    const localBoundCpf = getDeviceRegisteredCpf();
+    if (localBoundCpf && localBoundCpf !== cleanCpf) {
+      return {
+        success: false,
+        error: `Este dispositivo já está vinculado ao participante do CPF ${maskCpf(localBoundCpf)}. Para garantir a lisura e integridade do evento, é permitido apenas 1 cadastro por aparelho. Faça login na conta existente.`
+      };
+    }
+
     try {
-      // 4. Duplicity Check in Firestore
+      const deviceId = getDeviceId();
+      const deviceFingerprint = await getDeviceFingerprint();
+
+      // Check Firestore device lock by deviceId
+      const deviceDocRef = doc(db, 'devices', deviceId);
+      const deviceDoc = await getDoc(deviceDocRef);
+      if (deviceDoc.exists()) {
+        const deviceData = deviceDoc.data();
+        if (deviceData.visitorCpf && deviceData.visitorCpf !== cleanCpf) {
+          // Store locally to optimize subsequent checks
+          setDeviceRegisteredCpf(deviceData.visitorCpf, deviceData.visitorName || '');
+          return {
+            success: false,
+            error: `Este aparelho já realizou o cadastro de outro participante (${maskCpf(deviceData.visitorCpf)}). Para assegurar a transparência das votações, é permitido apenas 1 cadastro por dispositivo. Acesse com a conta já cadastrada.`
+          };
+        }
+      }
+
+      // Check Firestore device lock by fingerprint if fingerprint is non-empty
+      if (deviceFingerprint) {
+        const fpDocRef = doc(db, 'devices', `fp_${deviceFingerprint}`);
+        const fpDoc = await getDoc(fpDocRef);
+        if (fpDoc.exists()) {
+          const fpData = fpDoc.data();
+          if (fpData.visitorCpf && fpData.visitorCpf !== cleanCpf) {
+            setDeviceRegisteredCpf(fpData.visitorCpf, fpData.visitorName || '');
+            return {
+              success: false,
+              error: `Este aparelho já realizou o cadastro de outro participante (${maskCpf(fpData.visitorCpf)}). Para assegurar a transparência das votações, é permitido apenas 1 cadastro por dispositivo. Acesse com a conta já cadastrada.`
+            };
+          }
+        }
+      }
+
+      // 5. Duplicity Check in Firestore
       const visitorDocRef = doc(db, 'visitors', cleanCpf);
       const visitorDoc = await getDoc(visitorDocRef);
       if (visitorDoc.exists()) {
+        // Also bind device to this CPF if not already bound
+        setDeviceRegisteredCpf(cleanCpf, (visitorDoc.data() as Visitor).name || cleanName);
         return { 
           success: false, 
           error: 'Esse CPF já foi cadastrado no sistema. Por favor, faça login com sua senha.' 
         };
       }
 
-      // 5. Generate secure password hash
+      // 6. Generate secure password hash
       const passwordHash = await hashPassword(cleanPin);
 
-      // 6. Register and Credit 1000 ECOS
+      // 7. Register and Credit 1000 ECOS
       const newVisitor: Visitor = {
         name: cleanName,
         cpf: cleanCpf,
         balance: 1000, // Automatic Initial Credit: 1,000 ECOS
         passwordHash,
         registeredAt: new Date().toISOString(),
+        deviceId,
+        deviceFingerprint,
       };
 
       await setDoc(visitorDocRef, newVisitor);
+
+      // Save device record in Firestore
+      const nowIso = new Date().toISOString();
+      await setDoc(deviceDocRef, {
+        deviceId,
+        deviceFingerprint,
+        visitorCpf: cleanCpf,
+        visitorName: cleanName,
+        registeredAt: nowIso,
+      });
+
+      if (deviceFingerprint) {
+        await setDoc(doc(db, 'devices', `fp_${deviceFingerprint}`), {
+          deviceId,
+          deviceFingerprint,
+          visitorCpf: cleanCpf,
+          visitorName: cleanName,
+          registeredAt: nowIso,
+        });
+      }
+
+      // Bind in local device storage
+      setDeviceRegisteredCpf(cleanCpf, cleanName);
 
       setState(prev => ({
         ...prev,
@@ -429,6 +508,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...prev,
         currentVisitor: visitorData,
       }));
+
+      // Bind in device storage
+      setDeviceRegisteredCpf(cleanCpf, visitorData.name || '');
 
       localStorage.setItem('ecos_current_visitor_cpf', cleanCpf);
 
@@ -709,6 +791,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         batch.delete(docSnap.ref);
       });
 
+      // Delete all device locks from Firestore
+      const devicesQuerySnapshot = await getDocs(collection(db, 'devices'));
+      devicesQuerySnapshot.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+
       // Write default blacklist back
       DEFAULT_BLACKLIST.forEach((cpf) => {
         const docRef = doc(db, 'blacklist', cpf);
@@ -718,12 +806,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batch.commit();
 
       localStorage.removeItem('ecos_current_visitor_cpf');
+      clearDeviceRegistration();
       setState({
         currentVisitor: null,
         visitors: [],
         agencies: DEFAULT_AGENCIES.map(a => ({ ...a, balance: 0 })),
         transactions: [],
         blacklist: DEFAULT_BLACKLIST,
+        geofenceConfig: state.geofenceConfig,
       });
 
       navigate('welcome');
@@ -776,6 +866,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         geofenceConfig: state.geofenceConfig,
         updateGeofenceConfig,
         checkLocationPermissionAndGeofence,
+        clearDeviceLock: clearDeviceRegistration,
       }}
     >
       {children}

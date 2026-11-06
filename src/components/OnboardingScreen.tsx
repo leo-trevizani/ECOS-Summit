@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { formatCPF } from '../utils/cpf';
+import { getDeviceRegisteredCpf, getDeviceRegisteredName, maskCpf } from '../utils/device';
 import { motion } from 'motion/react';
-import { ArrowLeft, User, CreditCard, ShieldAlert, Sparkles, ShieldCheck, Lock } from 'lucide-react';
+import { ArrowLeft, User, CreditCard, ShieldAlert, Sparkles, ShieldCheck, Lock, Smartphone } from 'lucide-react';
 
 export const OnboardingScreen: React.FC = () => {
   const { registerVisitor, loginVisitor, navigate } = useApp();
@@ -17,6 +18,20 @@ export const OnboardingScreen: React.FC = () => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [deviceBoundCpf, setDeviceBoundCpf] = useState<string | null>(null);
+  const [deviceBoundName, setDeviceBoundName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const boundCpf = getDeviceRegisteredCpf();
+    const boundName = getDeviceRegisteredName();
+    if (boundCpf) {
+      setDeviceBoundCpf(boundCpf);
+      setDeviceBoundName(boundName);
+      // If user comes to Onboarding and device is already bound, default to Login mode
+      setIsLogin(true);
+      setCpf(formatCPF(boundCpf));
+    }
+  }, []);
 
   // Auto-format CPF during input
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,22 +109,53 @@ export const OnboardingScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Hero Welcome Info */}
-      <div className="mb-6 z-10 text-center bg-gradient-to-br from-brand-purple/20 to-transparent border border-brand-border rounded-2xl p-5 relative">
-        <div className="absolute top-2.5 right-2.5 text-brand-orange/40 animate-pulse">
-          <Sparkles className="w-5 h-5" />
+      {/* Hero Welcome Info / Device Lock Notice */}
+      {deviceBoundCpf && !isLogin ? (
+        <div className="mb-6 z-10 bg-amber-950/40 border border-amber-600/40 rounded-2xl p-4.5 text-left space-y-2">
+          <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+            <Smartphone className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Aparelho Já Vinculado (Regra: 1 Cadastro por Celular)</span>
+          </div>
+          <p className="text-xs text-amber-100/90 leading-relaxed font-sans">
+            Para garantir a lisura e a igualdade nas votações do ECOS Summit, <strong className="text-white">cada participante só pode cadastrar 1 única conta por dispositivo físico</strong>.
+          </p>
+          <div className="p-3 bg-black/40 rounded-xl border border-white/10 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-mono text-slate-400 uppercase">Conta cadastrada neste aparelho:</p>
+              <p className="text-sm font-mono font-bold text-amber-300">
+                {deviceBoundName ? `${deviceBoundName} • ` : ''}CPF {maskCpf(deviceBoundCpf)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setIsLogin(true);
+                setCpf(formatCPF(deviceBoundCpf));
+              }}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-display font-bold text-xs uppercase tracking-wider rounded-lg transition"
+            >
+              Entrar nela
+            </button>
+          </div>
         </div>
-        <p className="text-sm text-white/80 leading-relaxed">
-          {isLogin ? (
-            <span>Informe seu CPF abaixo para acessar seu saldo e histórico de transações da carteira digital.</span>
-          ) : (
-            <span>
-              Para garantir a integridade do ranking das agências acadêmicas, cada visitante deve registrar seu CPF. É rápido, seguro, e garante seu crédito inicial de{' '}
-              <strong className="text-brand-orange font-bold font-mono text-base">1.000 créditos</strong>.
-            </span>
-          )}
-        </p>
-      </div>
+      ) : (
+        <div className="mb-6 z-10 text-center bg-gradient-to-br from-brand-purple/20 to-transparent border border-brand-border rounded-2xl p-5 relative">
+          <div className="absolute top-2.5 right-2.5 text-brand-orange/40 animate-pulse">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <p className="text-sm text-white/80 leading-relaxed">
+            {isLogin ? (
+              <span>Informe seu CPF abaixo para acessar seu saldo e histórico de transações da carteira digital.</span>
+            ) : (
+              <span>
+                Para garantir a integridade do ranking das agências acadêmicas, cada visitante deve registrar seu CPF. É rápido, seguro, e garante seu crédito inicial de{' '}
+                <strong className="text-brand-orange font-bold font-mono text-base">1.000 créditos</strong>.
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Form Card */}
       <div className="z-10 my-auto bg-brand-surface border border-brand-border rounded-3xl p-6 shadow-xl">

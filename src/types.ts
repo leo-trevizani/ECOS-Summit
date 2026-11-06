@@ -9,6 +9,8 @@ export interface Visitor {
   balance: number;
   registeredAt: string;
   passwordHash?: string;
+  deviceId?: string;
+  deviceFingerprint?: string;
 }
 
 export interface Agency {

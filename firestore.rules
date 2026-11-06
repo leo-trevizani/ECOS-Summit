@@ -3,45 +3,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Global helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
-    // Admin check: verified via email or admins collection
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'leonardort92@gmail.com' ||
-        request.auth.token.admin == true ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
     function isValidCpf(cpf) {
       return cpf is string && cpf.matches('^[0-9]{11}$');
     }
 
     // 1. Agências
-    // Leitura pública (para leaderboard, votação e consulta nos stands)
-    // Modificações estruturais (criar, editar, deletar) restritas a administradores autenticados
-    // Atualização de saldo permitida se for atômica com uma transação válida
+    // Leitura pública (para leaderboard, votação e consulta nos estandes)
     match /agencies/{agencyId} {
       allow read: if true;
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance']) &&
-        request.resource.data.balance is int &&
-        request.resource.data.balance >= resource.data.balance
-      );
+      allow create, update, delete: if true;
     }
 
     // 2. Visitantes (Apoiadores)
-    // Documentos indexados pelo CPF de 11 dígitos
     match /visitors/{cpf} {
-      // Leitura permitida para o próprio visitante consultar seus dados
-      allow get: if true;
-      // Listagem geral restrita a administradores autenticados (antivazamento de base e LGPD)
-      allow list: if isAdmin();
+      allow read: if true;
       // Cadastro inicial: regras estritas anti-tampering (saldo inicial obrigatório de 1000)
       allow create: if isValidCpf(cpf) &&
         request.resource.data.cpf == cpf &&
@@ -51,24 +26,17 @@ service cloud.firestore {
         request.resource.data.name.size() <= 100 &&
         request.resource.data.registeredAt is string &&
         (!exists(/databases/$(database)/documents/blacklist/$(cpf)));
-      // Atualizações: somente débito atômico de saldo ou redefinição de senha pelo próprio visitante/admin
-      allow update: if isAdmin() || (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'passwordHash']) &&
+      // Atualizações de saldo (débito atômico) ou PIN
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['balance', 'passwordHash', 'deviceId', 'deviceFingerprint']) &&
         request.resource.data.balance is int &&
-        request.resource.data.balance >= 0 &&
-        request.resource.data.balance <= resource.data.balance
-      );
-      allow delete: if isAdmin();
+        request.resource.data.balance >= 0;
+      allow delete: if true;
     }
 
     // 3. Transações
     // Criação estritamente validada: valor inteiro positivo até 1000, referências válidas
     match /transactions/{transactionId} {
-      allow get: if true;
-      allow list: if isAdmin() || (
-        resource.data.visitorCpf is string ||
-        resource.data.agencyId is string
-      );
+      allow read: if true;
       allow create: if request.resource.data.amount is int &&
         request.resource.data.amount > 0 &&
         request.resource.data.amount <= 1000 &&
@@ -78,29 +46,27 @@ service cloud.firestore {
         request.resource.data.visitorName is string &&
         request.resource.data.visitorName.size() <= 100 &&
         request.resource.data.timestamp is string &&
-        // Integridade relacional: a agência e o visitante devem existir
         exists(/databases/$(database)/documents/agencies/$(request.resource.data.agencyId)) &&
         exists(/databases/$(database)/documents/visitors/$(request.resource.data.visitorCpf));
-      allow update, delete: if isAdmin();
+      allow update, delete: if true;
     }
 
-    // 4. Blacklist de CPFs
-    // Consulta pontual permitida para validação de cadastro; listagem e escrita restritas ao admin
+    // 4. Blacklist de CPFs (Expositores e Estudantes impedidos de votar)
     match /blacklist/{cpf} {
-      allow get: if true;
-      allow list, write: if isAdmin();
+      allow read: if true;
+      allow write: if true;
     }
 
     // 5. Configurações Globais (Geofence, etc.)
-    // Leitura pública para validação de presença no client; escrita apenas por admin
     match /config/{configId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
-    // 6. Coleção de Administradores
-    match /admins/{adminId} {
-      allow read, write: if isAdmin();
+    // 6. Registro de Dispositivos (Regra: 1 Cadastro por Dispositivo Físico)
+    match /devices/{deviceKey} {
+      allow read: if true;
+      allow create, update, delete: if true;
     }
   }
 }
