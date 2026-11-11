@@ -56,6 +56,8 @@ export const AdminConsole: React.FC = () => {
     createAgency,
     updateAgency,
     deleteAgency,
+    deleteVisitor,
+    deleteTransaction,
     resetAllData,
     investInAgency,
     geofenceConfig,
@@ -64,7 +66,7 @@ export const AdminConsole: React.FC = () => {
     clearDeviceLock
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'ranking' | 'blacklist' | 'visitors' | 'award' | 'agencies' | 'geofence'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'blacklist' | 'visitors' | 'transactions' | 'award' | 'agencies' | 'geofence'>('ranking');
   const [newBlacklistCpf, setNewBlacklistCpf] = useState('');
   const [bulkCpfInput, setBulkCpfInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -636,10 +638,11 @@ export const AdminConsole: React.FC = () => {
             >
               <option value="ranking">🏆 Ranking Geral</option>
               <option value="award">🎗️ Premiação Oficial</option>
-              <option value="geofence">📍 Raio & Geolocalização</option>
-              <option value="blacklist">🛡️ CPFs Bloqueados</option>
               <option value="visitors">👥 Lista de Apoiadores</option>
+              <option value="transactions">💸 Créditos Investidos (Transações)</option>
               <option value="agencies">🏢 Gerenciar Agências</option>
+              <option value="blacklist">🛡️ CPFs Bloqueados</option>
+              <option value="geofence">📍 Raio & Geolocalização</option>
             </select>
           </div>
         </div>
@@ -887,35 +890,153 @@ export const AdminConsole: React.FC = () => {
           {/* TAB 4: VISITANTES REGISTRADOS */}
           {activeTab === 'visitors' && (
             <div className="flex-1 flex flex-col space-y-3">
-              <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider">APOIADORES CADASTRADOS ({state.visitors.length})</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider">
+                  APOIADORES CADASTRADOS ({state.visitors.length})
+                </h3>
+                <span className="text-[11px] font-mono text-slate-400">
+                  Gerenciamento individual de participantes
+                </span>
+              </div>
               
               <div className="flex-1 bg-brand-surface border border-brand-border rounded-2xl overflow-hidden flex flex-col min-h-[220px]">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-brand-border bg-brand-dark/50 text-white/50 font-mono text-xs tracking-wider uppercase">
-                      <th className="p-3.5">Nome</th>
-                      <th className="p-3.5">CPF</th>
-                      <th className="p-3.5 text-right">Saldo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-brand-border">
-                    {state.visitors.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="p-8 text-center text-slate-400 italic text-sm">
-                          Nenhum visitante cadastrado até o momento.
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-brand-border bg-brand-dark/50 text-white/50 font-mono text-xs tracking-wider uppercase">
+                        <th className="p-3.5">Nome</th>
+                        <th className="p-3.5">CPF</th>
+                        <th className="p-3.5 text-right">Saldo</th>
+                        <th className="p-3.5 text-center w-24">Ações</th>
                       </tr>
-                    ) : (
-                      state.visitors.map(visitor => (
-                        <tr key={visitor.cpf} className="hover:bg-white/2 transition">
-                          <td className="p-3.5 font-medium text-slate-200">{visitor.name}</td>
-                          <td className="p-3.5 font-mono text-slate-400">{formatCPF(visitor.cpf)}</td>
-                          <td className="p-3.5 text-right font-mono font-bold text-brand-orange">{visitor.balance} créditos</td>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border">
+                      {state.visitors.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-slate-400 italic text-sm">
+                            Nenhum visitante cadastrado até o momento.
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        state.visitors.map(visitor => (
+                          <tr key={visitor.cpf} className="hover:bg-white/2 transition">
+                            <td className="p-3.5 font-medium text-slate-200">{visitor.name}</td>
+                            <td className="p-3.5 font-mono text-slate-400">{formatCPF(visitor.cpf)}</td>
+                            <td className="p-3.5 text-right font-mono font-bold text-brand-orange">{visitor.balance} créditos</td>
+                            <td className="p-3.5 text-center">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (window.confirm(`Confirma a exclusão definitiva do apoiador "${visitor.name}" (CPF: ${formatCPF(visitor.cpf)})? Essa ação liberará o vínculo de dispositivo deste participante.`)) {
+                                    const res = await deleteVisitor(visitor.cpf);
+                                    if (res.success) {
+                                      setSuccessMsg(`Apoiador "${visitor.name}" excluído com sucesso.`);
+                                    } else {
+                                      setErrorMsg(res.error || 'Erro ao excluir apoiador.');
+                                    }
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200 transition cursor-pointer inline-flex items-center gap-1 text-xs"
+                                title="Excluir Apoiador"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="font-mono text-[11px]">Excluir</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: TRANSAÇÕES / CRÉDITOS INVESTIDOS NAS AGÊNCIAS */}
+          {activeTab === 'transactions' && (
+            <div className="flex-1 flex flex-col space-y-3">
+              <div className="flex justify-between items-center flex-wrap gap-2">
+                <div>
+                  <h3 className="text-xs font-bold text-white/60 font-mono uppercase tracking-wider">
+                    CRÉDITOS INVESTIDOS NAS AGÊNCIAS ({state.transactions.length})
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Permite excluir ou estornar créditos de transações específicas (subtrai os créditos da agência e devolve ao apoiador).
+                  </p>
+                </div>
+                {state.transactions.length > 0 && (
+                  <button
+                    onClick={handleExportCSV}
+                    className="px-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-emerald-950/30 border border-emerald-500/30 rounded-xl hover:bg-emerald-900/40 transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Exportar CSV</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 bg-brand-surface border border-brand-border rounded-2xl overflow-hidden flex flex-col min-h-[220px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse min-w-[650px]">
+                    <thead>
+                      <tr className="border-b border-brand-border bg-brand-dark/50 text-white/50 font-mono text-xs tracking-wider uppercase">
+                        <th className="p-3.5">Data / Hora</th>
+                        <th className="p-3.5">Apoiador (CPF)</th>
+                        <th className="p-3.5">Agência Destino</th>
+                        <th className="p-3.5 text-right">Créditos</th>
+                        <th className="p-3.5 text-center w-28">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border">
+                      {state.transactions.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-400 italic text-sm">
+                            Nenhum investimento registrado no evento até o momento.
+                          </td>
+                        </tr>
+                      ) : (
+                        state.transactions.map(tx => (
+                          <tr key={tx.id} className="hover:bg-white/2 transition">
+                            <td className="p-3.5 font-mono text-xs text-slate-400 whitespace-nowrap">
+                              {new Date(tx.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                            </td>
+                            <td className="p-3.5">
+                              <p className="font-medium text-slate-200">{tx.visitorName}</p>
+                              <p className="text-xs font-mono text-slate-400">{formatCPF(tx.visitorCpf)}</p>
+                            </td>
+                            <td className="p-3.5 font-medium text-purple-300">
+                              {tx.agencyName}
+                            </td>
+                            <td className="p-3.5 text-right font-mono font-bold text-brand-orange whitespace-nowrap">
+                              {tx.amount.toLocaleString('pt-BR')} créditos
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (window.confirm(`Confirma a exclusão deste investimento de ${tx.amount} créditos na agência "${tx.agencyName}"? Os créditos serão estornados da agência e devolvidos ao apoiador.`)) {
+                                    const res = await deleteTransaction(tx.id);
+                                    if (res.success) {
+                                      setSuccessMsg(`Investimento de ${tx.amount} créditos excluído com sucesso.`);
+                                    } else {
+                                      setErrorMsg(res.error || 'Erro ao excluir investimento.');
+                                    }
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200 transition cursor-pointer inline-flex items-center gap-1 text-xs"
+                                title="Excluir / Estornar Créditos"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="font-mono text-[11px]">Estornar</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

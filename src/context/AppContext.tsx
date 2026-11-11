@@ -44,6 +44,8 @@ interface AppContextType {
   createAgency: (id: string, token: string, name: string, slogan: string) => Promise<{ success: boolean; error?: string }>;
   updateAgency: (id: string, token: string, name: string, slogan: string) => Promise<{ success: boolean; error?: string }>;
   deleteAgency: (id: string) => Promise<{ success: boolean; error?: string }>;
+  deleteVisitor: (cpf: string) => Promise<{ success: boolean; error?: string }>;
+  deleteTransaction: (transactionId: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   resetAllData: () => Promise<void>;
   fetchAdminData: () => Promise<void>;
@@ -752,6 +754,114 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Delete a visitor/supporter from Firestore and local state (Admin feature)
+  const deleteVisitor = async (cpf: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanCpf = cpf.replace(/\D/g, '');
+    try {
+      const visitorDocRef = doc(db, 'visitors', cleanCpf);
+      const visitorDoc = await getDoc(visitorDocRef);
+      if (!visitorDoc.exists()) {
+        return { success: false, error: 'Apoiador não encontrado no sistema.' };
+      }
+
+      // Find any device bindings for this CPF and clear them so the device can be re-used
+      const devicesSnap = await getDocs(query(collection(db, 'devices'), where('visitorCpf', '==', cleanCpf)));
+      const batch = writeBatch(db);
+      devicesSnap.forEach(dSnap => {
+        batch.delete(dSnap.ref);
+      });
+      batch.delete(visitorDocRef);
+      await batch.commit();
+
+      // If the current logged in visitor was this CPF, clear local session
+      if (state.currentVisitor?.cpf === cleanCpf) {
+        localStorage.removeItem('ecos_current_visitor_cpf');
+        clearDeviceRegistration();
+      }
+
+      setState(prev => ({
+        ...prev,
+        visitors: prev.visitors.filter(v => v.cpf !== cleanCpf),
+        currentVisitor: prev.currentVisitor?.cpf === cleanCpf ? null : prev.currentVisitor
+      }));
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error in deleteVisitor:', err);
+      return { success: false, error: 'Erro ao excluir apoiador: ' + (err.message || 'Falha de conexão') };
+    }
+  };
+
+  // Delete/Revert an invested credit transaction (Admin feature)
+  // Reversão de crédito: remove a transação, subtrai os créditos da agência e devolve os créditos ao apoiador (se ele ainda existir)
+  const deleteTransaction = async (transactionId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const txDocRef = doc(db, 'transactions', transactionId);
+      const txDoc = await getDoc(txDocRef);
+      if (!txDoc.exists()) {
+        return { success: false, error: 'Transação de investimento não encontrada.' };
+      }
+
+      const txData = txDoc.data() as Transaction;
+      const agencyDocRef = doc(db, 'agencies', txData.agencyId);
+      const visitorDocRef = doc(db, 'visitors', txData.visitorCpf);
+
+      await runTransaction(db, async (t) => {
+        const agencySnap = await t.get(agencyDocRef);
+        const visitorSnap = await t.get(visitorDocRef);
+
+        // Deduct invested credits from agency balance (cannot drop below 0)
+        if (agencySnap.exists()) {
+          const currentBal = agencySnap.data().balance || 0;
+          t.update(agencyDocRef, { balance: Math.max(0, currentBal - txData.amount) });
+        }
+
+        // Return credits back to the visitor if visitor account still exists
+        if (visitorSnap.exists()) {
+          const currentVisitorBal = visitorSnap.data().balance || 0;
+          t.update(visitorDocRef, { balance: currentVisitorBal + txData.amount });
+        }
+
+        // Delete the transaction document
+        t.delete(txDocRef);
+      });
+
+      // Update local state immediately
+      setState(prev => {
+        const updatedAgencies = prev.agencies.map(a => {
+          if (a.id === txData.agencyId) {
+            return { ...a, balance: Math.max(0, a.balance - txData.amount) };
+          }
+          return a;
+        });
+
+        const updatedVisitors = prev.visitors.map(v => {
+          if (v.cpf === txData.visitorCpf) {
+            return { ...v, balance: v.balance + txData.amount };
+          }
+          return v;
+        });
+
+        const updatedCurrentVisitor = prev.currentVisitor && prev.currentVisitor.cpf === txData.visitorCpf
+          ? { ...prev.currentVisitor, balance: prev.currentVisitor.balance + txData.amount }
+          : prev.currentVisitor;
+
+        return {
+          ...prev,
+          transactions: prev.transactions.filter(tx => tx.id !== transactionId),
+          agencies: updatedAgencies,
+          visitors: updatedVisitors,
+          currentVisitor: updatedCurrentVisitor,
+        };
+      });
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error in deleteTransaction:', err);
+      return { success: false, error: 'Erro ao estornar/excluir investimento: ' + (err.message || 'Falha de transação') };
+    }
+  };
+
   // Logout current visitor
   const logout = () => {
     localStorage.removeItem('ecos_current_visitor_cpf');
@@ -860,6 +970,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createAgency,
         updateAgency,
         deleteAgency,
+        deleteVisitor,
+        deleteTransaction,
         logout,
         resetAllData,
         fetchAdminData,
