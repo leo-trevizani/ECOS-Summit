@@ -759,30 +759,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanCpf = cpf.replace(/\D/g, '');
     try {
       const visitorDocRef = doc(db, 'visitors', cleanCpf);
-      const visitorDoc = await getDoc(visitorDocRef);
-      if (!visitorDoc.exists()) {
-        return { success: false, error: 'Apoiador não encontrado no sistema.' };
+      // Delete the visitor document directly in Firestore
+      await deleteDoc(visitorDocRef);
+
+      // Best-effort cleanup of any associated devices so the device can be re-used
+      try {
+        const devicesSnap = await getDocs(query(collection(db, 'devices'), where('visitorCpf', '==', cleanCpf)));
+        if (!devicesSnap.empty) {
+          const batch = writeBatch(db);
+          devicesSnap.forEach(dSnap => {
+            batch.delete(dSnap.ref);
+          });
+          await batch.commit();
+        }
+      } catch (devErr) {
+        console.warn('Non-blocking device cleanup notice:', devErr);
       }
 
-      // Find any device bindings for this CPF and clear them so the device can be re-used
-      const devicesSnap = await getDocs(query(collection(db, 'devices'), where('visitorCpf', '==', cleanCpf)));
-      const batch = writeBatch(db);
-      devicesSnap.forEach(dSnap => {
-        batch.delete(dSnap.ref);
-      });
-      batch.delete(visitorDocRef);
-      await batch.commit();
-
       // If the current logged in visitor was this CPF, clear local session
-      if (state.currentVisitor?.cpf === cleanCpf) {
+      if (state.currentVisitor?.cpf?.replace(/\D/g, '') === cleanCpf) {
         localStorage.removeItem('ecos_current_visitor_cpf');
         clearDeviceRegistration();
       }
 
+      // Also clean up local storage state cache
       setState(prev => ({
         ...prev,
-        visitors: prev.visitors.filter(v => v.cpf !== cleanCpf),
-        currentVisitor: prev.currentVisitor?.cpf === cleanCpf ? null : prev.currentVisitor
+        visitors: prev.visitors.filter(v => v.cpf.replace(/\D/g, '') !== cleanCpf),
+        currentVisitor: prev.currentVisitor?.cpf?.replace(/\D/g, '') === cleanCpf ? null : prev.currentVisitor
       }));
 
       return { success: true };

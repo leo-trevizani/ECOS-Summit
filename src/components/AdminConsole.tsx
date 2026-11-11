@@ -183,7 +183,7 @@ export const AdminConsole: React.FC = () => {
 
   const handleExportCSV = () => {
     if (state.transactions.length === 0) {
-      alert('Nenhuma transação registrada no momento.');
+      setErrorMsg('Nenhuma transação registrada no momento.');
       return;
     }
 
@@ -209,6 +209,90 @@ export const AdminConsole: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // State to track in-progress deletions & in-app confirmation dialog (replaces window.confirm)
+  const [deletingVisitorCpf, setDeletingVisitorCpf] = useState<string | null>(null);
+  const [deletingTxId, setDeletingTxId] = useState<string | null>(null);
+  const [isActionInProgress, setIsActionInProgress] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    type: 'visitor' | 'transaction' | 'agency' | 'reset';
+    title: string;
+    description: string;
+    warningNote?: string;
+    confirmLabel: string;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
+
+  // Dedicated supporter deletion handler (uses in-app modal instead of blocked window.confirm)
+  const handleDeleteVisitorClick = (visitor: { cpf: string; name: string }) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    setConfirmDialog({
+      isOpen: true,
+      type: 'visitor',
+      title: 'Excluir Apoiador',
+      description: `Deseja realmente excluir definitivamente o apoiador "${visitor.name}" (CPF: ${formatCPF(visitor.cpf)})?`,
+      warningNote: 'Esta ação apagará o cadastro do banco de dados e liberará o vínculo de aparelho deste participante para que ele possa se cadastrar novamente se necessário.',
+      confirmLabel: 'Sim, Excluir do Banco',
+      onConfirm: async () => {
+        setIsActionInProgress(true);
+        setDeletingVisitorCpf(visitor.cpf);
+        try {
+          const res = await deleteVisitor(visitor.cpf);
+          if (res.success) {
+            setSuccessMsg(`Apoiador "${visitor.name}" (CPF ${formatCPF(visitor.cpf)}) foi excluído com sucesso do banco de dados.`);
+            await fetchAdminData();
+          } else {
+            setErrorMsg(res.error || 'Erro ao excluir apoiador.');
+          }
+        } catch (err: any) {
+          console.error('Error deleting visitor:', err);
+          setErrorMsg('Falha ao excluir apoiador: ' + (err.message || 'Erro inesperado'));
+        } finally {
+          setDeletingVisitorCpf(null);
+          setIsActionInProgress(false);
+          setConfirmDialog(null);
+        }
+      }
+    });
+  };
+
+  // Dedicated transaction / invested credits deletion & reversal handler
+  const handleDeleteTransactionClick = (tx: { id: string; amount: number; agencyName: string; visitorName: string }) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    setConfirmDialog({
+      isOpen: true,
+      type: 'transaction',
+      title: 'Estornar e Excluir Investimento',
+      description: `Confirma o estorno deste investimento de ${tx.amount.toLocaleString('pt-BR')} créditos na agência "${tx.agencyName}" realizado por "${tx.visitorName}"?`,
+      warningNote: 'Os créditos serão subtraídos do saldo da agência no Firestore e devolvidos ao apoiador.',
+      confirmLabel: 'Sim, Estornar Investimento',
+      onConfirm: async () => {
+        setIsActionInProgress(true);
+        setDeletingTxId(tx.id);
+        try {
+          const res = await deleteTransaction(tx.id);
+          if (res.success) {
+            setSuccessMsg(`Investimento de ${tx.amount.toLocaleString('pt-BR')} créditos na agência "${tx.agencyName}" foi estornado e excluído com sucesso.`);
+            await fetchAdminData();
+          } else {
+            setErrorMsg(res.error || 'Erro ao estornar investimento.');
+          }
+        } catch (err: any) {
+          console.error('Error deleting transaction:', err);
+          setErrorMsg('Falha ao estornar investimento: ' + (err.message || 'Erro inesperado'));
+        } finally {
+          setDeletingTxId(null);
+          setIsActionInProgress(false);
+          setConfirmDialog(null);
+        }
+      }
+    });
   };
 
   const handleAgencyFormSubmit = async (e: React.FormEvent) => {
@@ -260,24 +344,42 @@ export const AdminConsole: React.FC = () => {
     setSuccessMsg(null);
   };
 
-  const handleDeleteAgencyClick = async (id: string, name: string) => {
+  const handleDeleteAgencyClick = (id: string, name: string) => {
     setErrorMsg(null);
     setSuccessMsg(null);
-    if (window.confirm(`Deseja realmente excluir permanentemente a agência "${name}"? Esta ação não pode ser desfeita.`)) {
-      const res = await deleteAgency(id);
-      if (res.success) {
-        setSuccessMsg(`Agência "${name}" excluída com sucesso.`);
-        if (editingAgencyId === id) {
-          setFormAgencyId('');
-          setFormAgencyToken('');
-          setFormAgencyName('');
-          setFormAgencySlogan('');
-          setEditingAgencyId(null);
+
+    setConfirmDialog({
+      isOpen: true,
+      type: 'agency',
+      title: 'Excluir Agência Estudantil',
+      description: `Deseja realmente excluir permanentemente a agência "${name}"?`,
+      warningNote: 'Esta ação não pode ser desfeita. Todos os dados desta agência serão apagados do sistema.',
+      confirmLabel: 'Sim, Excluir Agência',
+      onConfirm: async () => {
+        setIsActionInProgress(true);
+        try {
+          const res = await deleteAgency(id);
+          if (res.success) {
+            setSuccessMsg(`Agência "${name}" excluída com sucesso.`);
+            if (editingAgencyId === id) {
+              setFormAgencyId('');
+              setFormAgencyToken('');
+              setFormAgencyName('');
+              setFormAgencySlogan('');
+              setEditingAgencyId(null);
+            }
+            await fetchAdminData();
+          } else {
+            setErrorMsg(res.error || 'Erro ao deletar agência.');
+          }
+        } catch (err: any) {
+          setErrorMsg('Falha ao deletar agência: ' + (err.message || 'Erro'));
+        } finally {
+          setIsActionInProgress(false);
+          setConfirmDialog(null);
         }
-      } else {
-        setErrorMsg(res.error || 'Erro ao deletar agência.');
       }
-    }
+    });
   };
 
   const handleCancelEditAgency = () => {
@@ -926,21 +1028,19 @@ export const AdminConsole: React.FC = () => {
                             <td className="p-3.5 text-center">
                               <button
                                 type="button"
-                                onClick={async () => {
-                                  if (window.confirm(`Confirma a exclusão definitiva do apoiador "${visitor.name}" (CPF: ${formatCPF(visitor.cpf)})? Essa ação liberará o vínculo de dispositivo deste participante.`)) {
-                                    const res = await deleteVisitor(visitor.cpf);
-                                    if (res.success) {
-                                      setSuccessMsg(`Apoiador "${visitor.name}" excluído com sucesso.`);
-                                    } else {
-                                      setErrorMsg(res.error || 'Erro ao excluir apoiador.');
-                                    }
-                                  }
-                                }}
-                                className="p-1.5 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200 transition cursor-pointer inline-flex items-center gap-1 text-xs"
+                                disabled={deletingVisitorCpf === visitor.cpf}
+                                onClick={() => handleDeleteVisitorClick(visitor)}
+                                className="p-1.5 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200 transition cursor-pointer inline-flex items-center gap-1 text-xs disabled:opacity-50"
                                 title="Excluir Apoiador"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span className="font-mono text-[11px]">Excluir</span>
+                                {deletingVisitorCpf === visitor.cpf ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                                <span className="font-mono text-[11px]">
+                                  {deletingVisitorCpf === visitor.cpf ? 'Excluindo...' : 'Excluir'}
+                                </span>
                               </button>
                             </td>
                           </tr>
@@ -1014,21 +1114,19 @@ export const AdminConsole: React.FC = () => {
                             <td className="p-3.5 text-center">
                               <button
                                 type="button"
-                                onClick={async () => {
-                                  if (window.confirm(`Confirma a exclusão deste investimento de ${tx.amount} créditos na agência "${tx.agencyName}"? Os créditos serão estornados da agência e devolvidos ao apoiador.`)) {
-                                    const res = await deleteTransaction(tx.id);
-                                    if (res.success) {
-                                      setSuccessMsg(`Investimento de ${tx.amount} créditos excluído com sucesso.`);
-                                    } else {
-                                      setErrorMsg(res.error || 'Erro ao excluir investimento.');
-                                    }
-                                  }
-                                }}
-                                className="p-1.5 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200 transition cursor-pointer inline-flex items-center gap-1 text-xs"
+                                disabled={deletingTxId === tx.id}
+                                onClick={() => handleDeleteTransactionClick(tx)}
+                                className="p-1.5 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-200 transition cursor-pointer inline-flex items-center gap-1 text-xs disabled:opacity-50"
                                 title="Excluir / Estornar Créditos"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span className="font-mono text-[11px]">Estornar</span>
+                                {deletingTxId === tx.id ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                                <span className="font-mono text-[11px]">
+                                  {deletingTxId === tx.id ? 'Estornando...' : 'Estornar'}
+                                </span>
                               </button>
                             </td>
                           </tr>
@@ -1607,10 +1705,27 @@ export const AdminConsole: React.FC = () => {
           <button
             id="btn-factory-reset"
             onClick={() => {
-              if (window.confirm('Confirmação Crítica: Deseja realmente Limpar toda a Base de Dados? Todos os visitantes, saldos e históricos de transações serão permanentemente deletados.')) {
-                resetAllData();
-                setSuccessMsg('Toda a base de dados do Expo PP foi limpa com sucesso.');
-              }
+              setConfirmDialog({
+                isOpen: true,
+                type: 'reset',
+                title: 'Confirmação Crítica: Reset Geral',
+                description: 'Deseja realmente limpar toda a base de dados do evento?',
+                warningNote: 'ATENÇÃO: Todos os visitantes cadastrados, saldos e históricos de transações serão permanentemente apagados do Firestore. Esta ação é irreversível.',
+                confirmLabel: 'Sim, Limpar Toda a Base',
+                onConfirm: async () => {
+                  setIsActionInProgress(true);
+                  try {
+                    await resetAllData();
+                    setSuccessMsg('Toda a base de dados do Expo PP foi limpa com sucesso.');
+                    await fetchAdminData();
+                  } catch (err: any) {
+                    setErrorMsg('Erro ao resetar base de dados: ' + (err.message || 'Erro inesperado'));
+                  } finally {
+                    setIsActionInProgress(false);
+                    setConfirmDialog(null);
+                  }
+                }
+              });
             }}
             className="w-full py-2.5 bg-red-950/20 border border-red-900/40 text-red-300 hover:bg-red-950/40 font-mono text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
           >
@@ -1620,6 +1735,82 @@ export const AdminConsole: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Custom In-App Confirmation Modal (Works inside iframe without native dialog blocks) */}
+      {confirmDialog && confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-brand-surface border border-red-500/40 rounded-3xl p-6 max-w-md w-full space-y-4 relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                if (!isActionInProgress) {
+                  setConfirmDialog(null);
+                }
+              }}
+              disabled={isActionInProgress}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer disabled:opacity-40"
+              title="Cancelar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-950/60 border border-red-800/40 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <span className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-widest block">
+                  CONFIRMAÇÃO NECESSÁRIA
+                </span>
+                <h3 className="text-base font-display font-bold text-slate-100">
+                  {confirmDialog.title}
+                </h3>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-300 leading-relaxed">
+              {confirmDialog.description}
+            </p>
+
+            {confirmDialog.warningNote && (
+              <div className="p-3 bg-red-950/30 border border-red-900/30 rounded-xl text-xs text-red-300 flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span className="leading-snug">{confirmDialog.warningNote}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                id="btn-confirm-modal-cancel"
+                onClick={() => setConfirmDialog(null)}
+                disabled={isActionInProgress}
+                className="flex-1 py-3 px-4 bg-brand-dark hover:bg-white/5 border border-brand-border text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                id="btn-confirm-modal-action"
+                onClick={confirmDialog.onConfirm}
+                disabled={isActionInProgress}
+                className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 shadow-lg shadow-red-900/30"
+              >
+                {isActionInProgress ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>{confirmDialog.confirmLabel}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QR Code Admin Modal */}
       {selectedAgencyForQr && (
