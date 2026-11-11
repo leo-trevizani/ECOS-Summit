@@ -51,10 +51,10 @@ export const GamificationScreen: React.FC = () => {
     },
     {
       number: '03',
-      title: 'Escanear QR Code & Validação GPS',
-      desc: 'Aponte a câmera do celular para o QR Code oficial de cada stand. Para garantir um evento 100% justo e presencial, o app valida que você está no local do evento no momento do scan.',
+      title: 'Leitura com Câmera & Validação GPS',
+      desc: 'O acesso à câmera e à localização GPS faz parte do funcionamento essencial da dinâmica: a câmera é utilizada para ler o QR Code oficial de cada estande e o GPS garante que apenas participantes que estão presencialmente no evento possam realizar investimentos.',
       icon: MapPin,
-      highlight: 'Validação presencial justa e antifraude',
+      highlight: 'Câmera para o QR Code e GPS para validar presença física',
       badgeColor: 'from-emerald-500/20 to-teal-500/20 text-emerald-300 border-emerald-500/30'
     },
     {
@@ -64,14 +64,6 @@ export const GamificationScreen: React.FC = () => {
       icon: QrCode,
       highlight: 'Você decide quem merece mais aporte',
       badgeColor: 'from-cyan-500/20 to-blue-500/20 text-cyan-300 border-cyan-500/30'
-    },
-    {
-      number: '05',
-      title: 'Acompanhe a Disputa no Ranking',
-      desc: 'Todos os investimentos alimentam o ranking em tempo real. Ao final do evento, as agências mais investidas pelo público serão consagradas campeãs da feira.',
-      icon: Trophy,
-      highlight: 'Premiação das melhores agências da feira',
-      badgeColor: 'from-yellow-500/20 to-amber-500/20 text-amber-300 border-yellow-500/30'
     }
   ];
 
@@ -150,7 +142,7 @@ export const GamificationScreen: React.FC = () => {
           <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
             Passo a Passo da Experiência
           </h3>
-          <span className="text-[11px] font-mono text-brand-orange">5 Etapas Simples</span>
+          <span className="text-[11px] font-mono text-brand-orange">4 Etapas Simples</span>
         </div>
 
         {steps.map((step, idx) => {
