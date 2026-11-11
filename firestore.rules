@@ -39,7 +39,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.resource.data.amount is int &&
         request.resource.data.amount > 0 &&
-        request.resource.data.amount <= 1000 &&
+        request.resource.data.amount <= 900 &&
         isValidCpf(request.resource.data.visitorCpf) &&
         request.resource.data.agencyId is string &&
         request.resource.data.agencyId.size() <= 64 &&

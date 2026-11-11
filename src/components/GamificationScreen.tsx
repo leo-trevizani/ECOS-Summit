@@ -63,9 +63,9 @@ export const GamificationScreen: React.FC = () => {
     {
       number: '04',
       title: 'Invista seus Créditos nas Agências',
-      desc: 'Decida quantos créditos deseja alocar em cada equipe. Você pode pulverizar seu saldo entre várias agências ou apostar forte na sua favorita!',
+      desc: 'Decida quantos créditos deseja alocar em cada equipe (limite máximo de 900 créditos por agência). Assim, você divide seus 1.000 créditos entre diferentes agências para prestigiar mais projetos!',
       icon: QrCode,
-      highlight: 'Você decide quem merece mais aporte',
+      highlight: 'Teto de até 900 créditos por agência (incentivo à divisão)',
       badgeColor: 'from-cyan-500/20 to-blue-500/20 text-cyan-300 border-cyan-500/30'
     }
   ];
@@ -74,6 +74,10 @@ export const GamificationScreen: React.FC = () => {
     {
       q: 'Os créditos representam dinheiro real?',
       a: 'Não! São créditos virtuais para a gamificação da feira de negócios. Cada visitante recebe uma cota igual de 1.000 créditos para distribuir entre as agências expositoras.'
+    },
+    {
+      q: 'Posso investir todos os meus 1.000 créditos em uma única agência?',
+      a: 'Não! O limite máximo é de 900 créditos por agência. A dinâmica foi pensada para você dividir seus créditos entre ao menos duas agências e conhecer múltiplos estandes.'
     },
     {
       q: 'Por que o app pede localização GPS?',
@@ -85,7 +89,7 @@ export const GamificationScreen: React.FC = () => {
     },
     {
       q: 'Posso investir mais de uma vez na mesma agência?',
-      a: 'Sim! Você pode fazer quantos aportes quiser, desde que possua saldo suficiente de créditos na sua carteira.'
+      a: 'Sim! Você pode fazer aportes fracionados, desde que o total acumulado naquela agência não ultrapasse o teto de 900 créditos.'
     }
   ];
 

@@ -231,6 +231,14 @@ export const WalletScreen: React.FC = () => {
 
   const selectedAgency = state.agencies.find(a => a.id === selectedAgencyId);
 
+  // Cumulative amount this visitor has already invested in the currently selected agency (teto de 900 créditos)
+  const currentAgencyInvested = selectedAgencyId 
+    ? state.transactions
+        .filter(tx => tx.visitorCpf === visitor.cpf && tx.agencyId === selectedAgencyId)
+        .reduce((sum, tx) => sum + tx.amount, 0)
+    : 0;
+  const currentAgencyRemaining = Math.max(0, 900 - currentAgencyInvested);
+
   // Successfully decoded a QR code:
   // Validate presence via fresh GPS check at this exact moment
   const handleScanSuccess = async (decodedText: string) => {
@@ -292,13 +300,39 @@ export const WalletScreen: React.FC = () => {
     setErrorMsg(null);
 
     const amount = parseInt(investAmount, 10);
-    if (!Number.isInteger(amount) || amount <= 0 || amount > 1000) {
-      setErrorMsg('Por favor, informe uma quantia inteira entre 1 e 1.000 créditos.');
+    if (!Number.isInteger(amount) || amount <= 0) {
+      setErrorMsg('Por favor, informe uma quantia inteira de créditos.');
+      return;
+    }
+
+    // Regra: Limite de até 900 créditos por agência para incentivar a divisão entre equipes
+    if (amount > 900) {
+      setErrorMsg('Você só pode investir até 900 créditos em uma agência. Divida seus créditos entre diferentes agências do evento!');
       return;
     }
 
     if (!selectedAgencyId) {
       setErrorMsg('Agência não identificada.');
+      return;
+    }
+
+    // Checagem de limite acumulado nesta agência
+    const alreadyInvested = state.transactions
+      .filter(tx => tx.visitorCpf === visitor.cpf && tx.agencyId === selectedAgencyId)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    if (alreadyInvested + amount > 900) {
+      const remainingForAgency = Math.max(0, 900 - alreadyInvested);
+      if (remainingForAgency <= 0) {
+        setErrorMsg('Você já atingiu o limite de 900 créditos nesta agência. Divida seus créditos restantes entre outras agências!');
+      } else {
+        setErrorMsg(`Você já investiu ${alreadyInvested} créditos nesta agência. O limite máximo é de 900 por agência (restam ${remainingForAgency} créditos aqui). Divida seus créditos entre diferentes agências!`);
+      }
+      return;
+    }
+
+    if (amount > visitor.balance) {
+      setErrorMsg(`Saldo insuficiente. Você possui ${visitor.balance} créditos disponíveis.`);
       return;
     }
 
@@ -578,10 +612,18 @@ export const WalletScreen: React.FC = () => {
             <form onSubmit={handleInvestSubmit} className="flex-1 overflow-y-auto no-scrollbar space-y-5 py-2 flex flex-col justify-between">
               
               <div className="space-y-4">
-                {/* Balance Helper */}
-                <div className="p-3 bg-brand-dark border border-brand-border rounded-xl flex justify-between items-center text-sm">
-                  <span className="text-slate-400 font-mono">Seu saldo:</span>
-                  <span className="font-mono font-bold text-brand-orange">{visitor.balance} créditos</span>
+                {/* Balance & Agency Cap Helper */}
+                <div className="p-3 bg-brand-dark border border-brand-border rounded-xl flex justify-between items-center text-xs">
+                  <div>
+                    <span className="text-slate-400 font-mono block">Seu saldo disponível:</span>
+                    <span className="font-mono font-bold text-brand-orange text-sm">{visitor.balance} créditos</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-400 font-mono block">Teto para esta agência:</span>
+                    <span className="font-mono font-bold text-slate-200 text-sm">
+                      {currentAgencyRemaining} <span className="text-[10px] text-white/50">/ 900 máx</span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Amount Field */}
@@ -600,8 +642,16 @@ export const WalletScreen: React.FC = () => {
                       placeholder="0"
                       value={investAmount}
                       onChange={(e) => {
-                        setErrorMsg(null);
-                        setInvestAmount(e.target.value);
+                        const val = e.target.value;
+                        setInvestAmount(val);
+                        const parsed = parseInt(val, 10);
+                        if (parsed > 900) {
+                          setErrorMsg('Você só pode investir até 900 créditos em uma agência. Divida seus créditos entre diferentes agências para prestigiar mais projetos do evento!');
+                        } else if (currentAgencyInvested + parsed > 900) {
+                          setErrorMsg(`Limite de 900 créditos por agência (você já investiu ${currentAgencyInvested} nesta). Divida seus créditos entre diferentes agências!`);
+                        } else {
+                          setErrorMsg(null);
+                        }
                       }}
                       className="w-36 text-center text-3xl font-mono font-bold bg-transparent border-b-2 border-[#251F35] focus:border-brand-orange text-white focus:outline-none placeholder-white/10"
                       required
@@ -610,17 +660,23 @@ export const WalletScreen: React.FC = () => {
                   </div>
 
                   {/* Quick value presets */}
-                  <div className="flex gap-1.5 justify-center mt-4">
-                    {[50, 100, 200, 500].map(val => (
+                  <div className="flex flex-wrap gap-1.5 justify-center mt-4 px-2">
+                    {[50, 100, 250, 500, 900].map(val => (
                       <button
                         key={val}
                         type="button"
                         disabled={val > visitor.balance}
                         onClick={() => {
-                          setErrorMsg(null);
                           setInvestAmount(val.toString());
+                          if (val > 900) {
+                            setErrorMsg('Você só pode investir até 900 créditos em uma agência. Divida seus créditos entre diferentes agências do evento!');
+                          } else if (currentAgencyInvested + val > 900) {
+                            setErrorMsg(`Limite de 900 créditos por agência (restam ${currentAgencyRemaining} créditos nesta). Divida seus créditos entre diferentes agências!`);
+                          } else {
+                            setErrorMsg(null);
+                          }
                         }}
-                        className="px-3 py-1.5 bg-brand-dark hover:bg-white/5 disabled:opacity-30 border border-brand-border rounded-lg text-xs font-mono transition cursor-pointer"
+                        className="px-2.5 py-1.5 bg-brand-dark hover:bg-white/5 disabled:opacity-30 border border-brand-border rounded-lg text-xs font-mono transition cursor-pointer"
                       >
                         {val}
                       </button>
@@ -628,20 +684,32 @@ export const WalletScreen: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setErrorMsg(null);
-                        setInvestAmount(visitor.balance.toString());
+                        const targetVal = visitor.balance.toString();
+                        setInvestAmount(targetVal);
+                        if (visitor.balance > 900) {
+                          setErrorMsg('Você só pode investir até 900 créditos em uma agência. Divida seus créditos entre diferentes agências do evento!');
+                        } else if (currentAgencyInvested + visitor.balance > 900) {
+                          setErrorMsg(`Limite de 900 créditos por agência (restam ${currentAgencyRemaining} créditos nesta). Divida seus créditos entre diferentes agências!`);
+                        } else {
+                          setErrorMsg(null);
+                        }
                       }}
                       className="px-3 py-1.5 bg-[#F27D26]/15 hover:bg-[#F27D26]/30 border border-[#F27D26]/30 text-brand-orange rounded-lg text-xs font-mono transition cursor-pointer"
                     >
                       MAX
                     </button>
                   </div>
+
+                  <p className="text-[11px] text-white/40 font-mono mt-3">
+                    💡 Máximo de 900 créditos por agência para incentivar a divisão do seu apoio.
+                  </p>
                 </div>
 
                 {/* Error Box */}
                 {errorMsg && (
-                  <div className="p-3 bg-red-950/30 border border-red-900/30 rounded-xl text-sm text-red-300">
-                    {errorMsg}
+                  <div className="p-3 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-200 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <span className="leading-snug">{errorMsg}</span>
                   </div>
                 )}
               </div>

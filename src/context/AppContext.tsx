@@ -537,15 +537,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, error: 'Sessão inválida. Faça login novamente.' };
     }
 
-    // Defensive input check: must be positive integer up to 1000
-    if (!Number.isInteger(amount) || amount <= 0 || amount > 1000) {
-      return { success: false, error: 'Por favor, insira uma quantidade inteira válida de créditos (entre 1 e 1.000).' };
+    // Defensive input check: must be positive integer up to 900
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return { success: false, error: 'Por favor, insira uma quantidade inteira válida de créditos (maior que zero).' };
+    }
+
+    // Regra: Limite de até 900 créditos por agência para incentivar a divisão entre agências
+    if (amount > 900) {
+      return { 
+        success: false, 
+        error: 'Você só pode investir até 900 créditos em uma agência. Divida seus créditos entre diferentes agências para apoiar mais equipes!' 
+      };
     }
 
     const cleanAgencyId = sanitizeInput(agencyId, 64);
+    const visitorCpf = state.currentVisitor.cpf;
 
     try {
-      const visitorDocRef = doc(db, 'visitors', state.currentVisitor.cpf);
+      // Check cumulative investments in this specific agency
+      const txQuery = query(
+        collection(db, 'transactions'),
+        where('visitorCpf', '==', visitorCpf),
+        where('agencyId', '==', cleanAgencyId)
+      );
+      const existingTxSnap = await getDocs(txQuery);
+      let alreadyInvestedInAgency = 0;
+      existingTxSnap.forEach(dSnap => {
+        const dData = dSnap.data();
+        if (dData && typeof dData.amount === 'number') {
+          alreadyInvestedInAgency += dData.amount;
+        }
+      });
+
+      if (alreadyInvestedInAgency + amount > 900) {
+        const remainingAllowed = Math.max(0, 900 - alreadyInvestedInAgency);
+        if (remainingAllowed === 0) {
+          return {
+            success: false,
+            error: 'Você já atingiu o limite máximo de 900 créditos nesta agência. Divida seus créditos restantes investindo em outra agência do evento!'
+          };
+        }
+        return {
+          success: false,
+          error: `Você só pode investir até 900 créditos em uma mesma agência (já investiu ${alreadyInvestedInAgency} créditos nesta). Você ainda pode investir até ${remainingAllowed} créditos aqui, ou dividir entre outras agências!`
+        };
+      }
+
+      const visitorDocRef = doc(db, 'visitors', visitorCpf);
       const visitorDoc = await getDoc(visitorDocRef);
       if (!visitorDoc.exists()) {
         return { success: false, error: 'Apoiador não localizado no banco.' };
