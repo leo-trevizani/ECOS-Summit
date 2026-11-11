@@ -25,12 +25,15 @@ import {
   Navigation,
   AlertTriangle,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  MessageSquareHeart,
+  ExternalLink
 } from 'lucide-react';
 import { QrScannerComponent } from './QrScannerComponent';
 import { parseSecureQRPayload } from '../utils/qrSecurity';
 import { formatDistance } from '../utils/geolocation';
 import { LocationCheckResult } from '../types';
+import { openNpsForm, hasInteractedWithNps } from '../utils/nps';
 
 // Synthesized audio helper using Web Audio API to prevent static file assets loading issues
 const playSound = (type: 'click' | 'success', enabled: boolean) => {
@@ -732,6 +735,30 @@ export const WalletScreen: React.FC = () => {
                   <span className="text-white/50">Comprovante:</span>
                   <span className="text-[#7C3AED] text-xs font-bold uppercase tracking-wider">Autenticado</span>
                 </div>
+              </div>
+
+              {/* NPS Survey Callout Card */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-brand-purple/20 via-brand-surface to-brand-orange/15 border border-brand-orange/40 text-left space-y-3 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-brand-orange/20 text-brand-orange">
+                    <MessageSquareHeart className="w-4 h-4" />
+                  </div>
+                  <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-brand-orange">
+                    Pesquisa Rápida • 1 Minuto
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 leading-snug font-sans">
+                  Diga para a gente o que está achando do evento! Sua avaliação é essencial para o ECOS Summit.
+                </p>
+                <button
+                  type="button"
+                  id="btn-nps-success-modal"
+                  onClick={() => openNpsForm()}
+                  className="w-full py-2.5 px-3 bg-gradient-to-r from-brand-orange to-brand-orange-hover hover:opacity-95 text-white font-display font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition active:scale-[0.99]"
+                >
+                  <span>Avaliar o Evento Agora</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               <button

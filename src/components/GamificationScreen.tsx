@@ -18,8 +18,11 @@ import {
   Sparkles,
   ArrowRight,
   TrendingUp,
-  Store
+  Store,
+  MessageSquareHeart,
+  ExternalLink
 } from 'lucide-react';
+import { openNpsForm } from '../utils/nps';
 
 export const GamificationScreen: React.FC = () => {
   const { state, navigate } = useApp();
@@ -117,7 +120,7 @@ export const GamificationScreen: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="z-10 mb-8 rounded-3xl p-6 bg-gradient-to-br from-brand-surface via-brand-surface/80 to-brand-purple/20 border border-brand-border shadow-xl relative overflow-hidden"
       >
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
           <div className="p-3.5 rounded-2xl bg-gradient-to-tr from-brand-orange to-purple-600 text-white shadow-lg shadow-brand-orange/20 shrink-0">
             <TrendingUp className="w-7 h-7" />
           </div>
@@ -155,13 +158,13 @@ export const GamificationScreen: React.FC = () => {
               transition={{ delay: idx * 0.08 }}
               className="bg-brand-surface border border-brand-border hover:border-brand-border/80 rounded-2xl p-4 sm:p-5 transition-all shadow-md relative"
             >
-              <div className="flex items-start gap-3.5">
-                <div className="flex flex-col items-center shrink-0">
+              <div className="flex flex-col sm:flex-row items-start gap-3.5">
+                <div className="flex sm:flex-col items-center gap-2 sm:gap-0 shrink-0">
                   <div className="w-9 h-9 rounded-xl bg-brand-dark border border-brand-border flex items-center justify-center text-xs font-mono font-bold text-brand-orange">
                     {step.number}
                   </div>
                   {idx < steps.length - 1 && (
-                    <div className="w-0.5 h-6 bg-brand-border/60 my-1 rounded-full" />
+                    <div className="hidden sm:block w-0.5 h-6 bg-brand-border/60 my-1 rounded-full" />
                   )}
                 </div>
 
@@ -212,6 +215,39 @@ export const GamificationScreen: React.FC = () => {
               </p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* NPS Survey Highlight Banner */}
+      <div className="z-10 mb-8 rounded-3xl p-5 sm:p-6 bg-gradient-to-br from-brand-orange/20 via-brand-surface to-brand-purple/25 border border-brand-orange/40 shadow-xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-2xl bg-gradient-to-tr from-brand-orange to-purple-600 text-white shadow-lg shadow-brand-orange/20 shrink-0">
+              <MessageSquareHeart className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-orange/20 text-brand-orange text-[10px] font-mono font-bold uppercase tracking-wider border border-brand-orange/30">
+                <Sparkles className="w-3 h-3" />
+                Sua Opinião Importa
+              </div>
+              <h4 className="text-base sm:text-lg font-display font-bold text-white">
+                O que você está achando da Expo PP?
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+                Responda nossa rápida pesquisa de satisfação! Leva menos de 1 minuto e nos ajuda a melhorar cada vez mais.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="btn-nps-gamification-banner"
+            onClick={() => openNpsForm()}
+            className="w-full sm:w-auto shrink-0 py-3 px-5 bg-brand-orange hover:bg-brand-orange-hover text-white font-display font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-orange/20 cursor-pointer transition active:scale-[0.99]"
+          >
+            <span>Responder Pesquisa</span>
+            <ExternalLink className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
